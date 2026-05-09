@@ -90,18 +90,32 @@ export default function InvestmentsTab({
   // Initial Data Fetch for Crypto & Base Prices
   const fetchInitialData = async () => {
     setIsLoading(true);
+    let currentUsdRate = 32.5;
+    let fetchedCryptos: any[] = [];
+
     try {
-      // 1. Fetch USD/TRY rate via Tether
+      // 1. Fetch USD/TRY rate
       const tetherRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=try');
       const tetherData = await tetherRes.json();
-      const currentUsdRate = tetherData.tether?.try || 32.5;
+      currentUsdRate = tetherData.tether?.try || 32.5;
       setUsdRate(currentUsdRate);
 
-      // 2. Fetch Top 100 Cryptos
+      // 2. Fetch Top Cryptos
       const cryptoRes = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false');
-      const cryptoData = await cryptoRes.json();
-      
-      const newCryptos = cryptoData.map((c: { id: string; symbol: string; name: string; current_price: number; price_change_percentage_24h: number; image: string }) => ({
+      fetchedCryptos = await cryptoRes.json();
+    } catch (error) {
+      console.warn("API hatası (Adblocker veya Limit). Mock veriler kullanılıyor.");
+      // Fallback
+      fetchedCryptos = [
+        { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', current_price: 65000, price_change_percentage_24h: 2.5, image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+        { id: 'ethereum', symbol: 'eth', name: 'Ethereum', current_price: 3500, price_change_percentage_24h: 1.2, image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
+        { id: 'tether', symbol: 'usdt', name: 'Tether', current_price: 1, price_change_percentage_24h: 0.01, image: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
+        { id: 'solana', symbol: 'sol', name: 'Solana', current_price: 150, price_change_percentage_24h: -1.5, image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' }
+      ];
+    }
+
+    try {
+      const newCryptos = fetchedCryptos.map((c: any) => ({
         id: c.id,
         symbol: c.symbol.toUpperCase(),
         name: c.name,
@@ -115,7 +129,6 @@ export default function InvestmentsTab({
 
       // 3. Initialize Mocks with Sparklines
       const newSparklines: Record<string, { value: number }[]> = {};
-      
       newCryptos.forEach((c: Asset) => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
       
       const initialStocks = MOCK_STOCKS.map(s => {
@@ -131,9 +144,10 @@ export default function InvestmentsTab({
       setCommodities(initialCmds);
       
       setSparklines(newSparklines);
-    } catch (error) {
-      console.error("Veriler çekilemedi", error);
+    } catch (err) {
+      console.warn("Veri işleme hatası:", err);
     }
+    
     setIsLoading(false);
   };
 
