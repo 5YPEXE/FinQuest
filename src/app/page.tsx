@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Wallet, PieChart as PieChartIcon, TrendingUp, ArrowUpRight, ArrowDownRight, Bot, X, CheckCircle, Target, Activity, Sun, Moon, ChevronRight, Award } from "lucide-react";
+import { Wallet, PieChart as PieChartIcon, TrendingUp, ArrowUpRight, ArrowDownRight, Bot, X, CheckCircle, Target, Activity, Sun, Moon, ChevronRight, Award, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { useTheme } from "next-themes";
@@ -11,6 +11,9 @@ import { useAIEngine, LessonContext, generateMonthlyReport } from "../hooks/useA
 import TransactionsTab from "../components/TransactionsTab";
 import InvestmentsTab from "../components/InvestmentsTab";
 import PlanningTab from "../components/PlanningTab";
+import AuthModal from "../components/AuthModal";
+import { supabase } from "../lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 export default function Home() {
   const [isLessonOpen, setIsLessonOpen] = useState(false);
@@ -24,6 +27,9 @@ export default function Home() {
 
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   // Global Finance State
   const { 
@@ -49,6 +55,18 @@ export default function Home() {
     if (savedExp) setUserExp(parseInt(savedExp, 10));
     if (!hasSeenOnboarding) setShowOnboarding(true);
     if (savedLessons) setCompletedLessonIds(JSON.parse(savedLessons));
+
+    // Check Auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setIsAuthChecking(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleQuizComplete = () => {
@@ -92,8 +110,12 @@ export default function Home() {
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
+  if (isAuthChecking) return <div className="flex items-center justify-center h-screen bg-background text-foreground"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground transition-colors duration-300">
+      
+      {!user && <AuthModal onSuccess={() => {}} />}
       
       {/* Sidebar Navigation (Desktop) */}
       <aside className="w-64 border-r border-border bg-card p-6 hidden md:flex flex-col relative z-10">
@@ -154,6 +176,12 @@ export default function Home() {
             <div className="w-10 h-10 rounded-full bg-secondary border border-border flex items-center justify-center font-semibold cursor-pointer hover:bg-border transition-colors">
               U
             </div>
+            <button 
+              onClick={() => supabase.auth.signOut()} 
+              className="text-xs font-bold text-destructive hover:underline hidden md:block"
+            >
+              Çıkış Yap
+            </button>
           </div>
         </header>
 
