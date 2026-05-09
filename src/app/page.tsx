@@ -1,22 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Wallet, PieChart, TrendingUp, ArrowUpRight, ArrowDownRight, Bot, X, CheckCircle, Construction } from "lucide-react";
+import { Wallet, PieChart, TrendingUp, ArrowUpRight, ArrowDownRight, Bot, X, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+import { useFinanceData } from "../hooks/useFinanceData";
+import TransactionsTab from "../components/TransactionsTab";
+import InvestmentsTab from "../components/InvestmentsTab";
 
 export default function Home() {
   const [isLessonOpen, setIsLessonOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [userLevel, setUserLevel] = useState(3);
   const [userExp, setUserExp] = useState(45); // percentage
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, transactions, investments
 
-  // Load saved progress on mount to prevent hydration mismatch
+  // Global Finance State
+  const { 
+    transactions, 
+    portfolio, 
+    isLoaded, 
+    addTransaction, 
+    buyCrypto, 
+    sellCrypto,
+    totalBalance, 
+    monthlyExpense 
+  } = useFinanceData();
+
+  // Load gamification progress
   useEffect(() => {
-    setIsMounted(true);
     const savedLevel = localStorage.getItem("fq_level");
     const savedExp = localStorage.getItem("fq_exp");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedLevel) setUserLevel(parseInt(savedLevel, 10));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedExp) setUserExp(parseInt(savedExp, 10));
   }, []);
 
@@ -28,7 +44,7 @@ export default function Home() {
     
     if (newExp >= 100) {
       newLevel += 1;
-      newExp = newExp - 100 + 5; // Level up with a 5% starting bonus
+      newExp = newExp - 100 + 5;
     } else {
       newExp = Math.min(newExp, 100);
     }
@@ -36,10 +52,11 @@ export default function Home() {
     setUserExp(newExp);
     setUserLevel(newLevel);
     
-    // Save to LocalStorage
     localStorage.setItem("fq_level", newLevel.toString());
     localStorage.setItem("fq_exp", newExp.toString());
   };
+
+  if (!isLoaded) return <div className="flex items-center justify-center h-screen bg-background text-foreground">Yükleniyor...</div>;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -76,16 +93,14 @@ export default function Home() {
         <div className="mt-auto p-4 bg-secondary rounded-xl">
           <div className="text-sm font-medium mb-1">Finansal Zeka</div>
           <div className="w-full bg-border rounded-full h-2 mb-2 overflow-hidden">
-            {isMounted && (
-              <motion.div 
-                className="bg-primary h-full rounded-full" 
-                initial={{ width: 0 }}
-                animate={{ width: `${userExp}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
-              />
-            )}
+            <motion.div 
+              className="bg-primary h-full rounded-full" 
+              initial={{ width: 0 }}
+              animate={{ width: `${userExp}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+            />
           </div>
-          <div className="text-xs text-muted-foreground text-right">Seviye {isMounted ? userLevel : 3} Çırak</div>
+          <div className="text-xs text-muted-foreground text-right">Seviye {userLevel} Çırak</div>
         </div>
       </aside>
 
@@ -101,27 +116,27 @@ export default function Home() {
           </div>
         </header>
 
-        {activeTab === "dashboard" ? (
+        {activeTab === "dashboard" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             {/* Top Metric Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <MetricCard
                 title="Toplam Bakiye"
-                amount="₺45,231.00"
-                trend="+12.5%"
-                isPositive={true}
+                amount={`₺${totalBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`}
+                trend={totalBalance >= 0 ? "Bakiye Pozitif" : "Bakiye Negatif"}
+                isPositive={totalBalance >= 0}
               />
               <MetricCard
                 title="Aylık Harcama"
-                amount="₺12,450.00"
-                trend="+24.2%"
+                amount={`₺${monthlyExpense.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`}
+                trend="Geçmiş işlemlere göre"
                 isPositive={false}
               />
               <MetricCard
-                title="Tasarruf Hedefi"
-                amount="₺5,000.00"
-                trend="₺1,200 Kaldı"
-                isPositive={true}
+                title="Yatırım / Portföy"
+                amount={`${portfolio.length} Varlık`}
+                trend="Piyasalarda aktif"
+                isPositive={portfolio.length > 0}
               />
             </div>
 
@@ -133,10 +148,19 @@ export default function Home() {
                   <button onClick={() => setActiveTab('transactions')} className="text-sm font-medium text-primary hover:underline">Tümünü Gör</button>
                 </div>
                 <div className="space-y-4">
-                  <TransactionItem name="Starbucks Kahve" category="Yeme İçme" date="Bugün, 09:30" amount="-₺185.00" />
-                  <TransactionItem name="Netflix Aboneliği" category="Eğlence" date="Dün, 14:20" amount="-₺230.00" />
-                  <TransactionItem name="Maaş Ödemesi" category="Gelir" date="15 Mayıs 2026" amount="+₺65,000.00" isIncome />
-                  <TransactionItem name="Trendyol Alışverişi" category="Alışveriş" date="14 Mayıs 2026" amount="-₺3,450.00" />
+                  {transactions.slice(0, 4).map(tx => (
+                    <TransactionItem 
+                      key={tx.id} 
+                      name={tx.name} 
+                      category={tx.category} 
+                      date={tx.date} 
+                      amount={`${tx.amount > 0 ? '+' : ''}₺${Math.abs(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`} 
+                      isIncome={tx.amount > 0} 
+                    />
+                  ))}
+                  {transactions.length === 0 && (
+                    <div className="text-muted-foreground text-center py-4">Henüz işlem bulunmuyor.</div>
+                  )}
                 </div>
               </div>
 
@@ -155,7 +179,7 @@ export default function Home() {
                 <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50 relative z-10 flex-1">
                   <p className="text-sm font-medium mb-2">💡 Yeni Bir Tespitim Var!</p>
                   <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                    Bu ay dışarıda kahveye geçen aya göre <strong>%40 daha fazla</strong> harcadığını fark ettim. &quot;Latte Faktörü&quot; hakkında kısa bir eğitim almak ister misin?
+                    Dışarıda çok sık kahve içtiğini fark ettim. &quot;Latte Faktörü&quot; hakkında kısa bir eğitim almak ister misin?
                   </p>
                   <button 
                     onClick={() => setIsLessonOpen(true)}
@@ -167,31 +191,18 @@ export default function Home() {
               </div>
             </div>
           </motion.div>
-        ) : (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }} 
-            animate={{ opacity: 1, scale: 1 }} 
-            className="flex flex-col items-center justify-center h-[60vh] text-center px-4"
-          >
-            <div className="w-24 h-24 bg-secondary rounded-full flex items-center justify-center text-muted-foreground mb-6">
-              <Construction className="w-12 h-12" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Çok Yakında! 🚀</h2>
-            <p className="text-muted-foreground max-w-md">
-              "{activeTab === 'transactions' ? 'İşlemlerim' : 'Yatırımlar'}" sayfası şu anda yapım aşamasında. 
-              Hackathon sonrası burada yepyeni özellikler göreceksin!
-            </p>
-            <button 
-              onClick={() => setActiveTab('dashboard')}
-              className="mt-8 px-6 py-2 bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors"
-            >
-              Ana Ekrana Dön
-            </button>
-          </motion.div>
+        )}
+
+        {activeTab === "transactions" && (
+          <TransactionsTab transactions={transactions} onAddTransaction={addTransaction} />
+        )}
+
+        {activeTab === "investments" && (
+          <InvestmentsTab portfolio={portfolio} onBuyCrypto={buyCrypto} onSellCrypto={sellCrypto} totalBalance={totalBalance} />
         )}
       </main>
 
-      {/* Mobile Bottom Navigation (Visible only on small screens) */}
+      {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 px-6 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
         <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'dashboard' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
           <div className={`p-2 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-primary/10' : 'bg-transparent'}`}>
