@@ -110,7 +110,7 @@ export default function Home() {
             <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50 relative z-10 flex-1">
               <p className="text-sm font-medium mb-2">💡 Yeni Bir Tespitim Var!</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Bu ay dışarıda kahveye geçen aya göre <strong>%40 daha fazla</strong> harcadığını fark ettim. "Latte Faktörü" hakkında kısa bir eğitim almak ister misin?
+                Bu ay dışarıda kahveye geçen aya göre <strong>%40 daha fazla</strong> harcadığını fark ettim. &quot;Latte Faktörü&quot; hakkında kısa bir eğitim almak ister misin?
               </p>
               <button 
                 onClick={() => setIsLessonOpen(true)}
@@ -216,10 +216,10 @@ function LessonModal({ onClose, onComplete }: { onClose: () => void; onComplete:
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                    <h2 className="text-2xl font-bold mb-4">☕ Latte Faktörü Nedir?</h2>
                    <p className="text-muted-foreground mb-4 leading-relaxed">
-                     Küçük ve masum görünen günlük harcamaların (örneğin her gün içilen 150 TL'lik kahvenin), uzun vadede nasıl devasa bir servete dönüşebileceğini gösteren finansal bir kavramdır.
+                     Küçük ve masum görünen günlük harcamaların (örneğin her gün içilen 150 TL&apos;lik kahvenin), uzun vadede nasıl devasa bir servete dönüşebileceğini gösteren finansal bir kavramdır.
                    </p>
                    <div className="bg-primary/10 p-4 rounded-xl text-primary font-medium mb-6">
-                     💡 Günde 150 TL, ayda 4.500 TL yapar. Bu parayı 10 yıl boyunca yıllık %10 getiri sağlayan bir fona yatırsaydın, bugün <strong>1 Milyon TL'den fazla</strong> paran olabilirdi!
+                     💡 Günde 150 TL, ayda 4.500 TL yapar. Bu parayı 10 yıl boyunca yıllık %10 getiri sağlayan bir fona yatırsaydın, bugün <strong>1 Milyon TL&apos;den fazla</strong> paran olabilirdi!
                    </div>
                    <button 
                      onClick={() => setStep("quiz")}
@@ -233,7 +233,7 @@ function LessonModal({ onClose, onComplete }: { onClose: () => void; onComplete:
              {step === "quiz" && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                    <h2 className="text-xl font-bold mb-6">Hızlı Soru 🧠</h2>
-                   <p className="font-medium mb-4">Latte Faktörü'nün temel amacı aşağıdakilerden hangisidir?</p>
+                   <p className="font-medium mb-4">Latte Faktörü&apos;nün temel amacı aşağıdakilerden hangisidir?</p>
                    
                    <div className="space-y-3 mb-6">
                       {[
