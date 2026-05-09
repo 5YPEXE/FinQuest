@@ -99,9 +99,7 @@ export default function Home() {
       <aside className="w-64 border-r border-border bg-card p-6 hidden md:flex flex-col relative z-10">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-md shadow-primary/20">
-              FQ
-            </div>
+            <img src="/logo.png" alt="FinQuest Logo" className="w-8 h-8 rounded-lg object-cover shadow-md shadow-primary/20" />
             <span className="text-xl font-bold tracking-tight">FinQuest</span>
           </div>
           <button onClick={toggleTheme} className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors">
@@ -364,7 +362,7 @@ export default function Home() {
                 <AnimatePresence mode="wait">
                   {onboardingStep === 0 && (
                     <motion.div key="step1" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
-                      <div className="w-24 h-24 bg-primary text-primary-foreground rounded-3xl flex items-center justify-center text-4xl font-bold shadow-xl shadow-primary/30 mb-8 transform rotate-12">FQ</div>
+                      <img src="/logo.png" alt="FinQuest Logo" className="w-24 h-24 rounded-3xl shadow-xl shadow-primary/30 mb-8 transform rotate-12 object-cover" />
                       <h2 className="text-3xl font-black mb-4">FinQuest&apos;e<br/>Hoş Geldin</h2>
                       <p className="text-muted-foreground">Yeni nesil finansal asistanınla tanış. Cüzdanını sadece takip etme, onu büyütmeyi öğren.</p>
                     </motion.div>

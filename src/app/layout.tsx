@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FinQuest | Yapay Zeka Destekli Finans Koçun",
   description: "Harcamalarını analiz et, finansal okuryazarlığını artır.",
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export default function RootLayout({
