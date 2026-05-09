@@ -36,7 +36,7 @@ export default function Home() {
     transactions, portfolio, goals, debts, badges, isLoaded, 
     addTransaction, buyCrypto, sellCrypto, addGoal, addFundsToGoal, addDebt, payDebt,
     totalBalance, monthlyExpense, totalDebts, finquestScore
-  } = useFinanceData();
+  } = useFinanceData(user);
 
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   
