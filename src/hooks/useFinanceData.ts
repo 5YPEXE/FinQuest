@@ -33,6 +33,14 @@ export type Debt = {
   type: 'credit_card' | 'loan';
 };
 
+export type Badge = {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  isUnlocked: boolean;
+};
+
 export function useFinanceData() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
@@ -47,22 +55,17 @@ export function useFinanceData() {
     const savedDebts = localStorage.getItem('fq_debts');
     
     if (savedTx) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTransactions(JSON.parse(savedTx));
     } else {
       const defaultTx: Transaction[] = [
         { id: '1', name: 'Başlangıç Bakiyesi', category: 'Gelir', amount: 15000, date: new Date().toLocaleDateString('tr-TR'), type: 'income' }
       ];
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTransactions(defaultTx);
       localStorage.setItem('fq_transactions', JSON.stringify(defaultTx));
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedPortfolio) setPortfolio(JSON.parse(savedPortfolio));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedGoals) setGoals(JSON.parse(savedGoals));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedDebts) setDebts(JSON.parse(savedDebts));
     
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -207,24 +210,53 @@ export function useFinanceData() {
   const totalDebts = debts.reduce((acc, d) => acc + d.amount, 0);
 
   // FinQuest Skoru (0-1000)
-  // Basit algoritma: 500 başlangıç + (Toplam Varlık) - (Toplam Borç). 
-  // Min 0, Max 1000.
   const calculateScore = () => {
     let score = 500;
-    // Puan ekleyenler
     score += (totalBalance / 1000); 
-    score += (portfolio.length * 50); // Çeşitlilik
-    // Puan düşürenler
+    score += (portfolio.length * 50); 
     score -= (totalDebts / 500); 
     
     return Math.min(1000, Math.max(0, Math.floor(score)));
   };
+
+  // Badges Calculation
+  const badges: Badge[] = [
+    { 
+      id: 'first_blood', 
+      name: 'İlk Kan', 
+      desc: 'İlk gelirini veya giderini ekledin', 
+      icon: '🪙', 
+      isUnlocked: transactions.length > 1 // > 1 because "Başlangıç Bakiyesi" is default
+    },
+    { 
+      id: 'investor', 
+      name: 'Kurt Vps', 
+      desc: 'İlk yatırımını yaptın', 
+      icon: '📈', 
+      isUnlocked: transactions.some(t => t.type === 'investment') 
+    },
+    { 
+      id: 'goal_achiever', 
+      name: 'Tasarruf Şampiyonu', 
+      desc: 'Bir kumbarayı tamamen doldurdun', 
+      icon: '🎯', 
+      isUnlocked: goals.some(g => g.isCompleted) 
+    },
+    { 
+      id: 'debt_destroyer', 
+      name: 'Borç Yok Edici', 
+      desc: 'Bir borcunu sıfırladın', 
+      icon: '🛡️', 
+      isUnlocked: transactions.some(t => t.category === 'Borç Ödemesi') 
+    },
+  ];
 
   return {
     transactions,
     portfolio,
     goals,
     debts,
+    badges,
     isLoaded,
     addTransaction,
     buyCrypto,
