@@ -269,7 +269,7 @@ function LessonModal({ onClose, onComplete }: { onClose: () => void; onComplete:
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6">
                    <motion.div 
                      initial={{ scale: 0 }}
-                     animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
+                     animate={{ scale: 1, rotate: 360 }}
                      transition={{ type: "spring", stiffness: 200, damping: 10 }}
                      className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6"
                    >
