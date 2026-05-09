@@ -1,6 +1,7 @@
 import { Transaction } from './useFinanceData';
 
 export type LessonContext = {
+  id: string;
   title: string;
   description: string;
   alertMessage: string;
@@ -9,7 +10,75 @@ export type LessonContext = {
   correctAnswerIdx: number;
 };
 
-export function useAIEngine(transactions: Transaction[], totalBalance: number) {
+const GENERAL_LESSONS: LessonContext[] = [
+  {
+    id: 'compound_interest',
+    alertMessage: "Finansal zekanı geliştirmeye devam ediyorsun. Bugün senin için \"Bileşik Faiz\" mucizesini hazırladım. İncelemek ister misin?",
+    title: "❄️ Bileşik Faiz (Kar Topu Etkisi)",
+    description: "Bileşik faiz, kazandığın faizin de faiz kazanmasıdır. Bir kar topunun dağdan aşağı yuvarlandıkça büyümesi gibi, paran katlanarak artar.",
+    question: "Bileşik faizin en büyük avantajı nedir?",
+    options: [
+      "Sadece anaparanın değer kazanması.",
+      "Sadece ilk yıl yüksek getiri sağlaması.",
+      "Zaman geçtikçe kazancın katlanarak, kar topu gibi büyümesi."
+    ],
+    correctAnswerIdx: 2
+  },
+  {
+    id: 'emergency_fund',
+    alertMessage: "Beklenmedik durumlara karşı ne kadar hazırlıklısın? Haydi \"Acil Durum Fonu\" kavramını konuşalım.",
+    title: "🚑 Acil Durum Fonu",
+    description: "Acil durum fonu, beklenmedik giderler (sağlık, işsizlik, tamir) için kenarda tutulan, kolay erişilebilir nakit paraktır. İdeal olarak 3-6 aylık giderleri karşılamalıdır.",
+    question: "Acil durum fonu nerede tutulmalıdır?",
+    options: [
+      "Uzun vadeli, kitli hisse senedi yatırımlarında.",
+      "İstenildiği an anında çekilebilecek vadeli/vadesiz hesaplarda.",
+      "Riskli kripto paralarda."
+    ],
+    correctAnswerIdx: 1
+  },
+  {
+    id: 'diversification',
+    alertMessage: "Tüm yumurtaları aynı sepete koymak sence ne kadar mantıklı? Bugün \"Çeşitlendirme\" üzerine konuşalım.",
+    title: "🧺 Sepeti Çeşitlendirmek",
+    description: "Yatırımda çeşitlendirme (Diversifikasyon), riski azaltmak için parayı farklı varlık sınıflarına (hisse, altın, kripto, nakit) bölmektir.",
+    question: "Çeşitlendirmenin asıl amacı nedir?",
+    options: [
+      "Kısa sürede en yüksek karı elde etmek.",
+      "Tek bir yatırım aracı çökerse bile toplam portföyü büyük zarardan korumak.",
+      "Piyasadaki tüm varlıkları satın almak."
+    ],
+    correctAnswerIdx: 1
+  },
+  {
+    id: 'opportunity_cost',
+    alertMessage: "Bir şeyi seçerken neleri kaybettiğini hiç düşündün mü? \"Fırsat Maliyeti\" konseptine göz atalım.",
+    title: "⚖️ Fırsat Maliyeti",
+    description: "Fırsat maliyeti, bir kararı verirken vazgeçtiğin bir sonraki en iyi alternatifin değeridir. O pahalı telefonu almak yerine o parayla yatırım yapsaydın, kaçırılan kâr fırsat maliyetindir.",
+    question: "Bir konsola 20.000 TL vermek yerine o parayla hisse almayı düşünmek hangi kavramdır?",
+    options: [
+      "Bileşik Faiz",
+      "Fırsat Maliyeti",
+      "Enflasyon"
+    ],
+    correctAnswerIdx: 1
+  },
+  {
+    id: 'bull_bear_market',
+    alertMessage: "Piyasalarda sıkça duyulan 'Boğa' ve 'Ayı' ne anlama geliyor? Gel bu terimleri öğrenelim.",
+    title: "🐂 Boğa ve 🐻 Ayı Piyasası",
+    description: "Boğa piyasası (Bull Market) fiyatların sürekli arttığı, iyimser dönemi temsil eder. Ayı piyasası (Bear Market) ise fiyatların düştüğü, karamsar dönemi ifade eder.",
+    question: "Piyasaların genel olarak düşüş trendinde olduğu ve korkunun hakim olduğu döneme ne denir?",
+    options: [
+      "Boğa Piyasası",
+      "Ayı Piyasası",
+      "Ralli"
+    ],
+    correctAnswerIdx: 1
+  }
+];
+
+export function useAIEngine(transactions: Transaction[], totalBalance: number, completedLessonIds: string[]) {
   // Analyze behavior
   const foodExpenses = transactions.filter(t => (t.category === 'Yeme İçme' || t.category === 'Gıda & Market') && t.amount < 0).reduce((acc, t) => acc + Math.abs(t.amount), 0);
   const totalExpenses = transactions.filter(t => t.amount < 0 && t.type !== 'investment').reduce((acc, t) => acc + Math.abs(t.amount), 0);
@@ -17,11 +86,10 @@ export function useAIEngine(transactions: Transaction[], totalBalance: number) {
   const hasInvestments = transactions.some(t => t.type === 'investment');
   const entertainmentExpenses = transactions.filter(t => (t.category === 'Eğlence' || t.category === 'Alışveriş' || t.category === 'Diğer') && t.amount < 0).reduce((acc, t) => acc + Math.abs(t.amount), 0);
 
-  let lesson: LessonContext;
-
-  if (totalExpenses > 0 && (foodExpenses / totalExpenses) > 0.25) {
-    // Latte Factor
-    lesson = {
+  // 1. Try Contextual Lessons
+  if (totalExpenses > 0 && (foodExpenses / totalExpenses) > 0.25 && !completedLessonIds.includes('latte')) {
+    return {
+      id: 'latte',
       alertMessage: "Dışarıda veya gıdaya oldukça sık harcama yaptığını fark ettim. \"Latte Faktörü\" hakkında kısa bir eğitim almak ister misin?",
       title: "☕ Latte Faktörü Nedir?",
       description: "Küçük ve masum görünen günlük harcamaların, uzun vadede nasıl devasa bir servete dönüşebileceğini gösteren finansal bir kavramdır.",
@@ -33,9 +101,11 @@ export function useAIEngine(transactions: Transaction[], totalBalance: number) {
       ],
       correctAnswerIdx: 1
     };
-  } else if (!hasInvestments && totalBalance > 3000) {
-    // Inflation
-    lesson = {
+  } 
+  
+  if (!hasInvestments && totalBalance > 3000 && !completedLessonIds.includes('inflation')) {
+    return {
+      id: 'inflation',
       alertMessage: "Cüzdanında hatırı sayılır bir nakit birikmiş ancak hiç yatırım yapmamışsın. \"Enflasyon\" riski hakkında konuşalım mı?",
       title: "📉 Enflasyon Canavarı",
       description: "Enflasyon, paranın alım gücünün zamanla düşmesidir. Bugün 100 TL'ye alabildiğin ürünleri seneye alamıyorsan, cüzdanındaki nakit durduğu yerde eriyor demektir.",
@@ -47,9 +117,11 @@ export function useAIEngine(transactions: Transaction[], totalBalance: number) {
       ],
       correctAnswerIdx: 1
     };
-  } else if (totalExpenses > 0 && (entertainmentExpenses / totalExpenses) > 0.35) {
-    // 50-30-20 Rule
-    lesson = {
+  } 
+  
+  if (totalExpenses > 0 && (entertainmentExpenses / totalExpenses) > 0.35 && !completedLessonIds.includes('rule_50_30_20')) {
+    return {
+      id: 'rule_50_30_20',
       alertMessage: "Son zamanlarda eğlence ve alışveriş harcamaların epey artmış. Bütçeni daha iyi yönetmek için 50/30/20 kuralını öğrenmek ister misin?",
       title: "📊 50/30/20 Kuralı",
       description: "Maaşının %50'sini ihtiyaçlara (kira, fatura), %30'unu isteklere (eğlence, alışveriş) ve %20'sini yatırıma veya tasarrufa ayırmanı söyleyen altın bir kuraldır.",
@@ -61,23 +133,17 @@ export function useAIEngine(transactions: Transaction[], totalBalance: number) {
       ],
       correctAnswerIdx: 1
     };
-  } else {
-    // Default Compound Interest
-    lesson = {
-      alertMessage: "Finansal zekanı geliştirmeye devam ediyorsun. Bugün senin için \"Bileşik Faiz\" mucizesini hazırladım. İncelemek ister misin?",
-      title: "❄️ Bileşik Faiz (Kar Topu Etkisi)",
-      description: "Bileşik faiz, kazandığın faizin de faiz kazanmasıdır. Bir kar topunun dağdan aşağı yuvarlandıkça büyümesi gibi, paran katlanarak artar. Albert Einstein buna 'Dünyanın 8. harikası' demiştir.",
-      question: "Bileşik faizin en büyük avantajı nedir?",
-      options: [
-        "Sadece anaparanın değer kazanması.",
-        "Sadece ilk yıl yüksek getiri sağlaması.",
-        "Zaman geçtikçe kazancın katlanarak, kar topu gibi büyümesi."
-      ],
-      correctAnswerIdx: 2
-    };
   }
 
-  return lesson;
+  // 2. Fallback to General Lessons that are not completed
+  const nextGeneralLesson = GENERAL_LESSONS.find(lesson => !completedLessonIds.includes(lesson.id));
+  
+  if (nextGeneralLesson) {
+    return nextGeneralLesson;
+  }
+
+  // 3. No more lessons available
+  return null;
 }
 
 export function generateMonthlyReport(

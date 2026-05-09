@@ -32,7 +32,9 @@ export default function Home() {
     totalBalance, monthlyExpense, totalDebts, finquestScore
   } = useFinanceData();
 
-  const aiLesson = useAIEngine(transactions, totalBalance);
+  const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
+  
+  const aiLesson = useAIEngine(transactions, totalBalance, completedLessonIds);
 
   // Load gamification & onboarding progress
   useEffect(() => {
@@ -41,14 +43,23 @@ export default function Home() {
     const savedLevel = localStorage.getItem("fq_level");
     const savedExp = localStorage.getItem("fq_exp");
     const hasSeenOnboarding = localStorage.getItem("fq_onboarded");
+    const savedLessons = localStorage.getItem("fq_completed_lessons");
     
     if (savedLevel) setUserLevel(parseInt(savedLevel, 10));
     if (savedExp) setUserExp(parseInt(savedExp, 10));
     if (!hasSeenOnboarding) setShowOnboarding(true);
+    if (savedLessons) setCompletedLessonIds(JSON.parse(savedLessons));
   }, []);
 
   const handleQuizComplete = () => {
     setIsLessonOpen(false);
+    
+    if (aiLesson) {
+      const newCompleted = [...completedLessonIds, aiLesson.id];
+      setCompletedLessonIds(newCompleted);
+      localStorage.setItem("fq_completed_lessons", JSON.stringify(newCompleted));
+    }
+
     let newExp = userExp + 20;
     let newLevel = userLevel;
     if (newExp >= 100) {
@@ -226,14 +237,26 @@ export default function Home() {
                   </button>
                 </div>
                 
-                <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50 relative z-10 flex-1">
-                  <p className="text-sm font-medium mb-2">💡 Yeni Bir Tespitim Var!</p>
-                  <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                    {aiLesson.alertMessage}
-                  </p>
-                  <button onClick={() => setIsLessonOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] text-sm cursor-pointer shadow-lg shadow-primary/20">
-                    Eğitimi Görüntüle
-                  </button>
+                <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50 relative z-10 flex-1 flex flex-col justify-center">
+                  {aiLesson ? (
+                    <>
+                      <p className="text-sm font-medium mb-2">💡 Yeni Bir Tespitim Var!</p>
+                      <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                        {aiLesson.alertMessage}
+                      </p>
+                      <button onClick={() => setIsLessonOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] text-sm cursor-pointer shadow-lg shadow-primary/20 mt-auto">
+                        Eğitimi Görüntüle
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-center py-4">
+                      <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <CheckCircle className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold mb-1">Tüm Eğitimleri Tamamladın!</p>
+                      <p className="text-xs text-muted-foreground">Finansal zekan sınırları zorluyor. Yeni modüller çok yakında eklenecek.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -299,7 +322,7 @@ export default function Home() {
 
       {/* AI Lesson Modal */}
       <AnimatePresence>
-        {isLessonOpen && <LessonModal lesson={aiLesson} onClose={() => setIsLessonOpen(false)} onComplete={handleQuizComplete} />}
+        {isLessonOpen && aiLesson && <LessonModal lesson={aiLesson} onClose={() => setIsLessonOpen(false)} onComplete={handleQuizComplete} />}
       </AnimatePresence>
 
       {/* AI Monthly Report Modal */}
