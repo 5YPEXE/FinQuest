@@ -5,30 +5,30 @@ import { RefreshCw, TrendingUp, TrendingDown, Search, X, DollarSign, Pickaxe, Bu
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 
 const MOCK_STOCKS = [
-  { id: 'thyao', symbol: 'THYAO', name: 'Türk Hava Yolları', basePrice: 310, color: '#e11d48', imageUrl: 'https://logo.clearbit.com/turkishairlines.com' },
-  { id: 'asels', symbol: 'ASELS', name: 'Aselsan', basePrice: 60, color: '#0284c7', imageUrl: 'https://logo.clearbit.com/aselsan.com.tr' },
-  { id: 'garan', symbol: 'GARAN', name: 'Garanti BBVA', basePrice: 110, color: '#16a34a', imageUrl: 'https://logo.clearbit.com/garantibbva.com.tr' },
-  { id: 'sasa', symbol: 'SASA', name: 'Sasa Polyester', basePrice: 45, color: '#0f766e', imageUrl: 'https://logo.clearbit.com/sasa.com.tr' },
-  { id: 'tuprs', symbol: 'TUPRS', name: 'Tüpraş', basePrice: 180, color: '#b91c1c', imageUrl: 'https://logo.clearbit.com/tupras.com.tr' },
-  { id: 'kchol', symbol: 'KCHOL', name: 'Koç Holding', basePrice: 220, color: '#1d4ed8', imageUrl: 'https://logo.clearbit.com/koc.com.tr' },
-  { id: 'akbnk', symbol: 'AKBNK', name: 'Akbank', basePrice: 65, color: '#dc2626', imageUrl: 'https://logo.clearbit.com/akbank.com' },
-  { id: 'eregl', symbol: 'EREGL', name: 'Erdemir', basePrice: 50, color: '#475569', imageUrl: 'https://logo.clearbit.com/erdemir.com.tr' },
-  { id: 'froto', symbol: 'FROTO', name: 'Ford Otosan', basePrice: 1150, color: '#2563eb', imageUrl: 'https://logo.clearbit.com/fordotosan.com.tr' },
-  { id: 'bimas', symbol: 'BIMAS', name: 'BİM Mağazalar', basePrice: 400, color: '#ea580c', imageUrl: 'https://logo.clearbit.com/bim.com.tr' },
-  { id: 'ttkom', symbol: 'TTKOM', name: 'Türk Telekom', basePrice: 40, color: '#0284c7', imageUrl: 'https://logo.clearbit.com/turktelekom.com.tr' },
-  { id: 'sahol', symbol: 'SAHOL', name: 'Sabancı Holding', basePrice: 105, color: '#1e3a8a', imageUrl: 'https://logo.clearbit.com/sabanci.com' },
-  { id: 'toaso', symbol: 'TOASO', name: 'Tofaş', basePrice: 320, color: '#b91c1c', imageUrl: 'https://logo.clearbit.com/tofas.com.tr' },
-  { id: 'ykbnk', symbol: 'YKBNK', name: 'Yapı Kredi', basePrice: 35, color: '#0369a1', imageUrl: 'https://logo.clearbit.com/yapikredi.com.tr' },
-  { id: 'pgsus', symbol: 'PGSUS', name: 'Pegasus', basePrice: 1050, color: '#e11d48', imageUrl: 'https://logo.clearbit.com/flypgs.com' }
+  { id: 'thyao', symbol: 'THYAO', name: 'Türk Hava Yolları', basePrice: 310, color: '#e11d48', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=turkishairlines.com' },
+  { id: 'asels', symbol: 'ASELS', name: 'Aselsan', basePrice: 60, color: '#0284c7', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=aselsan.com.tr' },
+  { id: 'garan', symbol: 'GARAN', name: 'Garanti BBVA', basePrice: 110, color: '#16a34a', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=garantibbva.com.tr' },
+  { id: 'sasa', symbol: 'SASA', name: 'Sasa Polyester', basePrice: 45, color: '#0f766e', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=sasa.com.tr' },
+  { id: 'tuprs', symbol: 'TUPRS', name: 'Tüpraş', basePrice: 180, color: '#b91c1c', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=tupras.com.tr' },
+  { id: 'kchol', symbol: 'KCHOL', name: 'Koç Holding', basePrice: 220, color: '#1d4ed8', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=koc.com.tr' },
+  { id: 'akbnk', symbol: 'AKBNK', name: 'Akbank', basePrice: 65, color: '#dc2626', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=akbank.com' },
+  { id: 'eregl', symbol: 'EREGL', name: 'Erdemir', basePrice: 50, color: '#475569', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=erdemir.com.tr' },
+  { id: 'froto', symbol: 'FROTO', name: 'Ford Otosan', basePrice: 1150, color: '#2563eb', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=fordotosan.com.tr' },
+  { id: 'bimas', symbol: 'BIMAS', name: 'BİM Mağazalar', basePrice: 400, color: '#ea580c', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=bim.com.tr' },
+  { id: 'ttkom', symbol: 'TTKOM', name: 'Türk Telekom', basePrice: 40, color: '#0284c7', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=turktelekom.com.tr' },
+  { id: 'sahol', symbol: 'SAHOL', name: 'Sabancı Holding', basePrice: 105, color: '#1e3a8a', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=sabanci.com' },
+  { id: 'toaso', symbol: 'TOASO', name: 'Tofaş', basePrice: 320, color: '#b91c1c', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=tofas.com.tr' },
+  { id: 'ykbnk', symbol: 'YKBNK', name: 'Yapı Kredi', basePrice: 35, color: '#0369a1', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=yapikredi.com.tr' },
+  { id: 'pgsus', symbol: 'PGSUS', name: 'Pegasus', basePrice: 1050, color: '#e11d48', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=flypgs.com' }
 ];
 
 const MOCK_COMMODITIES = [
-  { id: 'xau', symbol: 'XAU/TRY', name: 'Gram Altın', basePrice: 2450, color: '#eab308' },
-  { id: 'xag', symbol: 'XAG/TRY', name: 'Gümüş', basePrice: 32, color: '#94a3b8' },
-  { id: 'xpt', symbol: 'XPT/TRY', name: 'Platin', basePrice: 1050, color: '#cbd5e1' },
-  { id: 'xpd', symbol: 'XPD/TRY', name: 'Paladyum', basePrice: 1100, color: '#64748b' },
-  { id: 'cop', symbol: 'COPPER', name: 'Bakır', basePrice: 150, color: '#b45309' },
-  { id: 'brent', symbol: 'BRENT', name: 'Brent Petrol', basePrice: 2700, color: '#1e293b' }
+  { id: 'xau', symbol: 'XAU/TRY', name: 'Gram Altın', basePrice: 2450, color: '#eab308', imageUrl: 'https://img.icons8.com/color/96/gold-bars.png' },
+  { id: 'xag', symbol: 'XAG/TRY', name: 'Gümüş', basePrice: 32, color: '#94a3b8', imageUrl: 'https://img.icons8.com/color/96/silver-bars.png' },
+  { id: 'xpt', symbol: 'XPT/TRY', name: 'Platin', basePrice: 1050, color: '#cbd5e1', imageUrl: 'https://img.icons8.com/color/96/diamond.png' },
+  { id: 'xpd', symbol: 'XPD/TRY', name: 'Paladyum', basePrice: 1100, color: '#64748b', imageUrl: 'https://img.icons8.com/color/96/ring.png' },
+  { id: 'cop', symbol: 'COPPER', name: 'Bakır', basePrice: 150, color: '#b45309', imageUrl: 'https://img.icons8.com/color/96/copper.png' },
+  { id: 'brent', symbol: 'BRENT', name: 'Brent Petrol', basePrice: 2700, color: '#1e293b', imageUrl: 'https://img.icons8.com/color/96/oil-industry.png' }
 ];
 
 // Helper to generate a realistic looking fake 7-day sparkline ending at current price
@@ -350,7 +350,7 @@ export default function InvestmentsTab({
                             <img 
                               src={asset.imageUrl} 
                               alt={asset.symbol} 
-                              className="w-full h-full object-cover absolute inset-0 bg-white" 
+                              className="w-full h-full object-contain absolute inset-0 bg-white p-1 rounded-full" 
                               onError={(e) => { e.currentTarget.style.opacity = '0'; }} 
                             />
                           )}
