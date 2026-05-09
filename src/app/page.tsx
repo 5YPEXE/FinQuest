@@ -1,30 +1,41 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Wallet, PieChart, TrendingUp, ArrowUpRight, ArrowDownRight, Bot, X, CheckCircle } from "lucide-react";
+import { Wallet, PieChart as PieChartIcon, TrendingUp, ArrowUpRight, ArrowDownRight, Bot, X, CheckCircle, Target, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 
 import { useFinanceData } from "../hooks/useFinanceData";
-import { useAIEngine, LessonContext } from "../hooks/useAIEngine";
+import { useAIEngine, LessonContext, generateMonthlyReport } from "../hooks/useAIEngine";
 import TransactionsTab from "../components/TransactionsTab";
 import InvestmentsTab from "../components/InvestmentsTab";
+import PlanningTab from "../components/PlanningTab";
 
 export default function Home() {
   const [isLessonOpen, setIsLessonOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const [userLevel, setUserLevel] = useState(3);
   const [userExp, setUserExp] = useState(45); // percentage
-  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, transactions, investments
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   // Global Finance State
   const { 
     transactions, 
     portfolio, 
+    goals,
+    debts,
     isLoaded, 
     addTransaction, 
     buyCrypto, 
     sellCrypto,
+    addGoal,
+    addFundsToGoal,
+    addDebt,
+    payDebt,
     totalBalance, 
-    monthlyExpense 
+    monthlyExpense,
+    totalDebts,
+    finquestScore
   } = useFinanceData();
 
   const aiLesson = useAIEngine(transactions, totalBalance);
@@ -61,6 +72,16 @@ export default function Home() {
 
   if (!isLoaded) return <div className="flex items-center justify-center h-screen bg-background text-foreground">Yükleniyor...</div>;
 
+  // Generate Pie Chart Data (Cash vs Goals vs Portfolio)
+  const portfolioTotal = portfolio.reduce((acc, p) => acc + (p.amount * p.averageBuyPrice), 0);
+  const goalsTotal = goals.reduce((acc, g) => acc + g.currentAmount, 0);
+  
+  const pieData = [
+    { name: 'Nakit Bakiye', value: Math.max(0, totalBalance), color: '#3b82f6' },
+    { name: 'Yatırımlar', value: portfolioTotal, color: '#10b981' },
+    { name: 'Hedefler/Kumbara', value: goalsTotal, color: '#f59e0b' }
+  ].filter(d => d.value > 0);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar Navigation (Desktop) */}
@@ -74,22 +95,28 @@ export default function Home() {
 
         <nav className="space-y-2 flex-1">
           <NavItem 
-            icon={<PieChart className="w-5 h-5" />} 
+            icon={<PieChartIcon className="w-5 h-5" />} 
             label="Gösterge Paneli" 
             active={activeTab === 'dashboard'} 
             onClick={() => setActiveTab('dashboard')} 
           />
           <NavItem 
-            icon={<Wallet className="w-5 h-5" />} 
-            label="İşlemlerim" 
-            active={activeTab === 'transactions'} 
-            onClick={() => setActiveTab('transactions')} 
+            icon={<Target className="w-5 h-5" />} 
+            label="Planlama" 
+            active={activeTab === 'planning'} 
+            onClick={() => setActiveTab('planning')} 
           />
           <NavItem 
             icon={<TrendingUp className="w-5 h-5" />} 
             label="Yatırımlar" 
             active={activeTab === 'investments'} 
             onClick={() => setActiveTab('investments')} 
+          />
+          <NavItem 
+            icon={<Wallet className="w-5 h-5" />} 
+            label="İşlemlerim" 
+            active={activeTab === 'transactions'} 
+            onClick={() => setActiveTab('transactions')} 
           />
         </nav>
 
@@ -121,8 +148,9 @@ export default function Home() {
 
         {activeTab === "dashboard" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            
             {/* Top Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <MetricCard
                 title="Toplam Bakiye"
                 amount={`₺${totalBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`}
@@ -135,48 +163,80 @@ export default function Home() {
                 trend="Geçmiş işlemlere göre"
                 isPositive={false}
               />
-              <MetricCard
-                title="Yatırım / Portföy"
-                amount={`${portfolio.length} Varlık`}
-                trend="Piyasalarda aktif"
-                isPositive={portfolio.length > 0}
-              />
-            </div>
-
-            {/* Recent Transactions & AI Insights */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold">Son İşlemler</h2>
-                  <button onClick={() => setActiveTab('transactions')} className="text-sm font-medium text-primary hover:underline">Tümünü Gör</button>
+              <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between hover:border-primary/50 transition-colors cursor-default shadow-sm hover:shadow-md col-span-1 md:col-span-2 relative overflow-hidden">
+                <div className="absolute right-6 top-6 bottom-6 w-32 flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        innerRadius={30}
+                        outerRadius={50}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip formatter={(value: number) => `₺${value.toLocaleString('tr-TR')}`} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="space-y-4">
-                  {transactions.slice(0, 4).map(tx => (
-                    <TransactionItem 
-                      key={tx.id} 
-                      name={tx.name} 
-                      category={tx.category} 
-                      date={tx.date} 
-                      amount={`${tx.amount > 0 ? '+' : ''}₺${Math.abs(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`} 
-                      isIncome={tx.amount > 0} 
-                    />
-                  ))}
-                  {transactions.length === 0 && (
-                    <div className="text-muted-foreground text-center py-4">Henüz işlem bulunmuyor.</div>
-                  )}
+                <div className="z-10">
+                  <div className="text-sm text-muted-foreground mb-2">Varlık Dağılımı</div>
+                  <div className="space-y-1">
+                    {pieData.map(d => (
+                      <div key={d.name} className="flex items-center gap-2 text-sm font-bold">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></div>
+                        {d.name}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col relative overflow-hidden">
+            {/* Middle Section: FinQuest Score & AI */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              
+              {/* FinQuest Score */}
+              <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden shadow-sm hover:shadow-md">
+                <h2 className="text-lg font-semibold w-full text-left mb-6 absolute top-6 left-6">FinQuest Skoru</h2>
+                <div className="relative mt-12 mb-4">
+                  <svg className="w-40 h-40 transform -rotate-90">
+                    <circle cx="80" cy="80" r="70" fill="transparent" stroke="currentColor" strokeWidth="12" className="text-secondary" />
+                    <circle 
+                      cx="80" cy="80" r="70" fill="transparent" stroke="currentColor" strokeWidth="12" 
+                      strokeDasharray="439.8" strokeDashoffset={439.8 - (439.8 * finquestScore) / 1000} 
+                      strokeLinecap="round" 
+                      className={`transition-all duration-1000 ease-out ${finquestScore > 700 ? 'text-emerald-500' : finquestScore > 400 ? 'text-primary' : 'text-rose-500'}`} 
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-4xl font-black">{finquestScore}</div>
+                    <div className="text-xs text-muted-foreground">/ 1000</div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center px-4">Gelir, gider ve borç oranlarına göre hesaplanan finansal sağlık durumun.</p>
+              </div>
+
+              {/* AI Insight */}
+              <div className="lg:col-span-2 bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                   <Bot className="w-32 h-32 text-primary" />
                 </div>
                 
-                <div className="flex items-center gap-3 mb-6 relative z-10">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white shadow-md shadow-primary/20">
-                    <Bot className="w-6 h-6" />
+                <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white shadow-md shadow-primary/20">
+                      <Bot className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-primary">FinQuest AI</h2>
                   </div>
-                  <h2 className="text-xl font-semibold text-primary">FinQuest AI</h2>
+                  <button onClick={() => setIsReportOpen(true)} className="flex items-center gap-1 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg shadow-primary/20 hover:scale-105 transition-transform cursor-pointer">
+                    <Activity className="w-4 h-4" /> Aylık Karnemi Çıkar
+                  </button>
                 </div>
                 
                 <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50 relative z-10 flex-1">
@@ -192,8 +252,41 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+
             </div>
+
+            {/* Recent Transactions */}
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Son İşlemler</h2>
+                <button onClick={() => setActiveTab('transactions')} className="text-sm font-medium text-primary hover:underline">Tümünü Gör</button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {transactions.slice(0, 4).map(tx => (
+                  <TransactionItem 
+                    key={tx.id} 
+                    name={tx.name} 
+                    category={tx.category} 
+                    date={tx.date} 
+                    amount={`${tx.amount > 0 ? '+' : ''}₺${Math.abs(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`} 
+                    isIncome={tx.amount > 0} 
+                  />
+                ))}
+                {transactions.length === 0 && (
+                  <div className="text-muted-foreground py-4">Henüz işlem bulunmuyor.</div>
+                )}
+              </div>
+            </div>
+
           </motion.div>
+        )}
+
+        {activeTab === "planning" && (
+          <PlanningTab 
+            goals={goals} debts={debts} totalBalance={totalBalance} 
+            addGoal={addGoal} addFundsToGoal={addFundsToGoal} 
+            addDebt={addDebt} payDebt={payDebt} 
+          />
         )}
 
         {activeTab === "transactions" && (
@@ -206,24 +299,22 @@ export default function Home() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 px-6 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
-        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'dashboard' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-          <div className={`p-2 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-primary/10' : 'bg-transparent'}`}>
-            <PieChart className="w-6 h-6" />
-          </div>
-          <span className="text-[11px] font-bold">Özet</span>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 px-4 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 p-2 transition-colors ${activeTab === 'dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+          <PieChartIcon className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Özet</span>
         </button>
-        <button onClick={() => setActiveTab('transactions')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'transactions' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-          <div className={`p-2 rounded-xl transition-colors ${activeTab === 'transactions' ? 'bg-primary/10' : 'bg-transparent'}`}>
-            <Wallet className="w-6 h-6" />
-          </div>
-          <span className="text-[11px] font-bold">İşlemler</span>
+        <button onClick={() => setActiveTab('planning')} className={`flex flex-col items-center gap-1 p-2 transition-colors ${activeTab === 'planning' ? 'text-primary' : 'text-muted-foreground'}`}>
+          <Target className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Plan</span>
         </button>
-        <button onClick={() => setActiveTab('investments')} className={`flex flex-col items-center gap-1.5 p-2 transition-colors ${activeTab === 'investments' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-          <div className={`p-2 rounded-xl transition-colors ${activeTab === 'investments' ? 'bg-primary/10' : 'bg-transparent'}`}>
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <span className="text-[11px] font-bold">Yatırım</span>
+        <button onClick={() => setActiveTab('investments')} className={`flex flex-col items-center gap-1 p-2 transition-colors ${activeTab === 'investments' ? 'text-primary' : 'text-muted-foreground'}`}>
+          <TrendingUp className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Yatırım</span>
+        </button>
+        <button onClick={() => setActiveTab('transactions')} className={`flex flex-col items-center gap-1 p-2 transition-colors ${activeTab === 'transactions' ? 'text-primary' : 'text-muted-foreground'}`}>
+          <Wallet className="w-5 h-5" />
+          <span className="text-[10px] font-bold">İşlem</span>
         </button>
       </nav>
 
@@ -233,6 +324,41 @@ export default function Home() {
           <LessonModal lesson={aiLesson} onClose={() => setIsLessonOpen(false)} onComplete={handleQuizComplete} />
         )}
       </AnimatePresence>
+
+      {/* AI Monthly Report Modal */}
+      <AnimatePresence>
+        {isReportOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card w-full max-w-lg rounded-3xl shadow-2xl border border-border overflow-hidden"
+            >
+              <div className="p-4 border-b border-border flex justify-between items-center bg-secondary/50">
+                <div className="flex items-center gap-2 text-primary font-bold">
+                  <Activity className="w-5 h-5" /> Aylık Finansal Karne
+                </div>
+                <button onClick={() => setIsReportOpen(false)} className="p-1 hover:bg-border rounded-full transition-colors cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 md:p-8">
+                <div className="whitespace-pre-wrap text-muted-foreground leading-relaxed font-medium">
+                  {generateMonthlyReport(transactions, portfolio, totalBalance, totalDebts)}
+                </div>
+                <button 
+                  onClick={() => setIsReportOpen(false)}
+                  className="w-full mt-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  Raporu Kapat
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
@@ -275,7 +401,7 @@ function TransactionItem({ name, category, date, amount, isIncome = false }: { n
           {isIncome ? <TrendingUp className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
         </div>
         <div>
-          <div className="font-medium text-sm md:text-base">{name}</div>
+          <div className="font-medium text-sm md:text-base truncate max-w-[120px] sm:max-w-[150px]">{name}</div>
           <div className="text-xs text-muted-foreground">{category} • {date}</div>
         </div>
       </div>
@@ -286,7 +412,6 @@ function TransactionItem({ name, category, date, amount, isIncome = false }: { n
   );
 }
 
-// Modal Component
 function LessonModal({ lesson, onClose, onComplete }: { lesson: LessonContext; onClose: () => void; onComplete: () => void }) {
   const [step, setStep] = useState<"lesson" | "quiz" | "success">("lesson");
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);

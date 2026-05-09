@@ -17,20 +17,39 @@ export type PortfolioItem = {
   averageBuyPrice: number;
 };
 
+export type Goal = {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  icon: string;
+  isCompleted: boolean;
+};
+
+export type Debt = {
+  id: string;
+  name: string;
+  amount: number;
+  type: 'credit_card' | 'loan';
+};
+
 export function useFinanceData() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const savedTx = localStorage.getItem('fq_transactions');
     const savedPortfolio = localStorage.getItem('fq_portfolio');
+    const savedGoals = localStorage.getItem('fq_goals');
+    const savedDebts = localStorage.getItem('fq_debts');
     
     if (savedTx) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTransactions(JSON.parse(savedTx));
     } else {
-      // Varsayılan başlangıç verisi (İlk defa giren kullanıcı boş ekran görmesin diye)
       const defaultTx: Transaction[] = [
         { id: '1', name: 'Başlangıç Bakiyesi', category: 'Gelir', amount: 15000, date: new Date().toLocaleDateString('tr-TR'), type: 'income' }
       ];
@@ -39,10 +58,12 @@ export function useFinanceData() {
       localStorage.setItem('fq_transactions', JSON.stringify(defaultTx));
     }
 
-    if (savedPortfolio) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPortfolio(JSON.parse(savedPortfolio));
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (savedPortfolio) setPortfolio(JSON.parse(savedPortfolio));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (savedGoals) setGoals(JSON.parse(savedGoals));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (savedDebts) setDebts(JSON.parse(savedDebts));
     
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoaded(true);
@@ -58,13 +79,73 @@ export function useFinanceData() {
     localStorage.setItem('fq_portfolio', JSON.stringify(newPortfolio));
   };
 
+  const saveGoals = (newGoals: Goal[]) => {
+    setGoals(newGoals);
+    localStorage.setItem('fq_goals', JSON.stringify(newGoals));
+  };
+
+  const saveDebts = (newDebts: Debt[]) => {
+    setDebts(newDebts);
+    localStorage.setItem('fq_debts', JSON.stringify(newDebts));
+  };
+
   const addTransaction = (tx: Omit<Transaction, 'id'>) => {
     const newTx = [{ ...tx, id: Date.now().toString() }, ...transactions];
     saveTransactions(newTx);
   };
 
+  // Goals
+  const addGoal = (goal: Omit<Goal, 'id' | 'currentAmount' | 'isCompleted'>) => {
+    saveGoals([...goals, { ...goal, id: Date.now().toString(), currentAmount: 0, isCompleted: false }]);
+  };
+
+  const addFundsToGoal = (goalId: string, amount: number) => {
+    // Para ana bakiyeden düşmeli
+    addTransaction({
+      name: `Kumbara: Hedefe Aktarım`,
+      category: 'Birikim',
+      amount: -amount,
+      date: new Date().toLocaleDateString('tr-TR'),
+      type: 'expense'
+    });
+
+    const newGoals = goals.map(g => {
+      if (g.id === goalId) {
+        const newAmount = g.currentAmount + amount;
+        return { ...g, currentAmount: newAmount, isCompleted: newAmount >= g.targetAmount };
+      }
+      return g;
+    });
+    saveGoals(newGoals);
+  };
+
+  // Debts
+  const addDebt = (debt: Omit<Debt, 'id'>) => {
+    saveDebts([...debts, { ...debt, id: Date.now().toString() }]);
+  };
+
+  const payDebt = (debtId: string, amount: number) => {
+    const debt = debts.find(d => d.id === debtId);
+    if (!debt) return;
+
+    addTransaction({
+      name: `Borç Ödemesi: ${debt.name}`,
+      category: 'Borç Ödemesi',
+      amount: -amount,
+      date: new Date().toLocaleDateString('tr-TR'),
+      type: 'expense'
+    });
+
+    const newDebts = debts.map(d => {
+      if (d.id === debtId) {
+        return { ...d, amount: Math.max(0, d.amount - amount) };
+      }
+      return d;
+    }).filter(d => d.amount > 0);
+    saveDebts(newDebts);
+  };
+
   const buyCrypto = (coinId: string, symbol: string, name: string, priceTry: number, amountTry: number) => {
-    // 1. İşlemlere yatırımı ekle (Ana bakiyeden düşer)
     addTransaction({
       name: `${name} Alımı`,
       category: 'Yatırım',
@@ -73,7 +154,6 @@ export function useFinanceData() {
       type: 'investment'
     });
 
-    // 2. Portföyü güncelle
     const coinAmount = amountTry / priceTry;
     const existing = portfolio.find(p => p.coinId === coinId);
     let newPortfolio;
@@ -103,7 +183,6 @@ export function useFinanceData() {
 
     const valueInTry = amountToSellCoin * currentPriceTry;
 
-    // 1. İşlemlere geliri ekle
     addTransaction({
       name: `${name} Satışı`,
       category: 'Yatırım Getirisi',
@@ -112,13 +191,12 @@ export function useFinanceData() {
       type: 'income'
     });
 
-    // 2. Portföyden düş
     const newPortfolio = portfolio.map(p => {
       if (p.coinId === coinId) {
         return { ...p, amount: p.amount - amountToSellCoin };
       }
       return p;
-    }).filter(p => p.amount > 0.000001); // Sıfıra yakınsa listeden çıkar
+    }).filter(p => p.amount > 0.000001);
 
     savePortfolio(newPortfolio);
     return true;
@@ -126,15 +204,38 @@ export function useFinanceData() {
 
   const totalBalance = transactions.reduce((acc, tx) => acc + tx.amount, 0);
   const monthlyExpense = transactions.filter(t => t.amount < 0 && t.type === 'expense').reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
+  const totalDebts = debts.reduce((acc, d) => acc + d.amount, 0);
+
+  // FinQuest Skoru (0-1000)
+  // Basit algoritma: 500 başlangıç + (Toplam Varlık) - (Toplam Borç). 
+  // Min 0, Max 1000.
+  const calculateScore = () => {
+    let score = 500;
+    // Puan ekleyenler
+    score += (totalBalance / 1000); 
+    score += (portfolio.length * 50); // Çeşitlilik
+    // Puan düşürenler
+    score -= (totalDebts / 500); 
+    
+    return Math.min(1000, Math.max(0, Math.floor(score)));
+  };
 
   return {
     transactions,
     portfolio,
+    goals,
+    debts,
     isLoaded,
     addTransaction,
     buyCrypto,
     sellCrypto,
+    addGoal,
+    addFundsToGoal,
+    addDebt,
+    payDebt,
     totalBalance,
-    monthlyExpense
+    monthlyExpense,
+    totalDebts,
+    finquestScore: calculateScore()
   };
 }

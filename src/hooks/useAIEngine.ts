@@ -79,3 +79,51 @@ export function useAIEngine(transactions: Transaction[], totalBalance: number) {
 
   return lesson;
 }
+
+export function generateMonthlyReport(
+  transactions: Transaction[], 
+  portfolio: { amount: number, averageBuyPrice?: number }[], 
+  totalBalance: number, 
+  totalDebts: number
+): string {
+  const totalExpenses = transactions.filter(t => t.amount < 0 && t.type !== 'investment').reduce((acc, t) => acc + Math.abs(t.amount), 0);
+  const totalIncome = transactions.filter(t => t.amount > 0 && t.type !== 'investment').reduce((acc, t) => acc + Math.abs(t.amount), 0);
+  
+  const categories: Record<string, number> = {};
+  transactions.filter(t => t.amount < 0 && t.type !== 'investment').forEach(t => {
+    categories[t.category] = (categories[t.category] || 0) + Math.abs(t.amount);
+  });
+
+  const topCategory = Object.keys(categories).sort((a, b) => categories[b] - categories[a])[0];
+  const topCatAmount = topCategory ? categories[topCategory] : 0;
+  const topCatPercent = totalExpenses > 0 ? Math.round((topCatAmount / totalExpenses) * 100) : 0;
+
+  let report = "🎯 Aylık Finansal Karne:\n\n";
+  
+  if (totalExpenses > totalIncome) {
+    report += "⚠️ Bu ay gelirinden daha fazla harcama yapmışsın. Açığın var, bütçeni acilen gözden geçirmelisin.\n";
+  } else if (totalIncome > 0 && totalExpenses > 0) {
+    report += `✅ Tebrikler! Bu ay harcamaların gelirinin altında kaldı. Yaklaşık ${(totalIncome - totalExpenses).toLocaleString('tr-TR')} ₺ tasarruf ettin.\n`;
+  }
+
+  if (topCategory) {
+    report += `\n📊 En büyük gider kalemin: ${topCategory} (${topCatAmount.toLocaleString('tr-TR')} ₺ - Toplam giderin %${topCatPercent}'i).\n`;
+    if (topCatPercent > 40) {
+      report += `💡 Sadece bu kategoriye olan harcamalarını %10 kıssan bile uzun vadede harika bir yatırım sermayesi oluşturabilirsin.\n`;
+    }
+  }
+
+  if (portfolio.length > 0) {
+    report += `\n📈 Yatırım portföyün gayet çeşitli ve şu an ${portfolio.length} farklı varlığın bulunuyor. Paran çalışmaya devam ediyor.\n`;
+  } else {
+    report += `\n📉 Cüzdanında para olmasına rağmen henüz yatırıma başlamamışsın. Paran enflasyon karşısında değer kaybediyor olabilir!\n`;
+  }
+
+  if (totalDebts > 0) {
+    report += `\n💳 Üzerindeki toplam borç yükü ${totalDebts.toLocaleString('tr-TR')} ₺. Öncelikle yüksek faizli kredi kartı borçlarını eritmeye odaklan.\n`;
+  }
+
+  report += "\n🚀 FinQuest Tavsiyesi: 50/30/20 bütçe kuralını hatırla ve maaşının en az %20'sini her ay düzenli yatırıma (kumbara veya varlık) ayırmayı hedefle!";
+  
+  return report;
+}
