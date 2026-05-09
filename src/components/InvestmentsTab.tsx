@@ -5,21 +5,21 @@ import { RefreshCw, TrendingUp, TrendingDown, Search, X, DollarSign, Pickaxe, Bu
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 
 const MOCK_STOCKS = [
-  { id: 'thyao', symbol: 'THYAO', name: 'Türk Hava Yolları', basePrice: 310, color: '#e11d48' },
-  { id: 'asels', symbol: 'ASELS', name: 'Aselsan', basePrice: 60, color: '#0284c7' },
-  { id: 'garan', symbol: 'GARAN', name: 'Garanti BBVA', basePrice: 110, color: '#16a34a' },
-  { id: 'sasa', symbol: 'SASA', name: 'Sasa Polyester', basePrice: 45, color: '#0f766e' },
-  { id: 'tuprs', symbol: 'TUPRS', name: 'Tüpraş', basePrice: 180, color: '#b91c1c' },
-  { id: 'kchol', symbol: 'KCHOL', name: 'Koç Holding', basePrice: 220, color: '#1d4ed8' },
-  { id: 'akbnk', symbol: 'AKBNK', name: 'Akbank', basePrice: 65, color: '#dc2626' },
-  { id: 'eregl', symbol: 'EREGL', name: 'Erdemir', basePrice: 50, color: '#475569' },
-  { id: 'froto', symbol: 'FROTO', name: 'Ford Otosan', basePrice: 1150, color: '#2563eb' },
-  { id: 'bimas', symbol: 'BIMAS', name: 'BİM Mağazalar', basePrice: 400, color: '#ea580c' },
-  { id: 'ttkom', symbol: 'TTKOM', name: 'Türk Telekom', basePrice: 40, color: '#0284c7' },
-  { id: 'sahol', symbol: 'SAHOL', name: 'Sabancı Holding', basePrice: 105, color: '#1e3a8a' },
-  { id: 'toaso', symbol: 'TOASO', name: 'Tofaş', basePrice: 320, color: '#b91c1c' },
-  { id: 'ykbnk', symbol: 'YKBNK', name: 'Yapı Kredi', basePrice: 35, color: '#0369a1' },
-  { id: 'pgsus', symbol: 'PGSUS', name: 'Pegasus', basePrice: 1050, color: '#e11d48' }
+  { id: 'thyao', symbol: 'THYAO', name: 'Türk Hava Yolları', basePrice: 310, color: '#e11d48', imageUrl: 'https://logo.clearbit.com/turkishairlines.com' },
+  { id: 'asels', symbol: 'ASELS', name: 'Aselsan', basePrice: 60, color: '#0284c7', imageUrl: 'https://logo.clearbit.com/aselsan.com.tr' },
+  { id: 'garan', symbol: 'GARAN', name: 'Garanti BBVA', basePrice: 110, color: '#16a34a', imageUrl: 'https://logo.clearbit.com/garantibbva.com.tr' },
+  { id: 'sasa', symbol: 'SASA', name: 'Sasa Polyester', basePrice: 45, color: '#0f766e', imageUrl: 'https://logo.clearbit.com/sasa.com.tr' },
+  { id: 'tuprs', symbol: 'TUPRS', name: 'Tüpraş', basePrice: 180, color: '#b91c1c', imageUrl: 'https://logo.clearbit.com/tupras.com.tr' },
+  { id: 'kchol', symbol: 'KCHOL', name: 'Koç Holding', basePrice: 220, color: '#1d4ed8', imageUrl: 'https://logo.clearbit.com/koc.com.tr' },
+  { id: 'akbnk', symbol: 'AKBNK', name: 'Akbank', basePrice: 65, color: '#dc2626', imageUrl: 'https://logo.clearbit.com/akbank.com' },
+  { id: 'eregl', symbol: 'EREGL', name: 'Erdemir', basePrice: 50, color: '#475569', imageUrl: 'https://logo.clearbit.com/erdemir.com.tr' },
+  { id: 'froto', symbol: 'FROTO', name: 'Ford Otosan', basePrice: 1150, color: '#2563eb', imageUrl: 'https://logo.clearbit.com/fordotosan.com.tr' },
+  { id: 'bimas', symbol: 'BIMAS', name: 'BİM Mağazalar', basePrice: 400, color: '#ea580c', imageUrl: 'https://logo.clearbit.com/bim.com.tr' },
+  { id: 'ttkom', symbol: 'TTKOM', name: 'Türk Telekom', basePrice: 40, color: '#0284c7', imageUrl: 'https://logo.clearbit.com/turktelekom.com.tr' },
+  { id: 'sahol', symbol: 'SAHOL', name: 'Sabancı Holding', basePrice: 105, color: '#1e3a8a', imageUrl: 'https://logo.clearbit.com/sabanci.com' },
+  { id: 'toaso', symbol: 'TOASO', name: 'Tofaş', basePrice: 320, color: '#b91c1c', imageUrl: 'https://logo.clearbit.com/tofas.com.tr' },
+  { id: 'ykbnk', symbol: 'YKBNK', name: 'Yapı Kredi', basePrice: 35, color: '#0369a1', imageUrl: 'https://logo.clearbit.com/yapikredi.com.tr' },
+  { id: 'pgsus', symbol: 'PGSUS', name: 'Pegasus', basePrice: 1050, color: '#e11d48', imageUrl: 'https://logo.clearbit.com/flypgs.com' }
 ];
 
 const MOCK_COMMODITIES = [
@@ -57,6 +57,7 @@ type Asset = {
   priceTry: number;
   change24h: number;
   color: string;
+  imageUrl?: string;
 };
 
 export default function InvestmentsTab({
@@ -100,14 +101,15 @@ export default function InvestmentsTab({
       const cryptoRes = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false');
       const cryptoData = await cryptoRes.json();
       
-      const newCryptos = cryptoData.map((c: { id: string; symbol: string; name: string; current_price: number; price_change_percentage_24h: number }) => ({
+      const newCryptos = cryptoData.map((c: { id: string; symbol: string; name: string; current_price: number; price_change_percentage_24h: number; image: string }) => ({
         id: c.id,
         symbol: c.symbol.toUpperCase(),
         name: c.name,
         priceUsd: c.current_price,
         priceTry: c.current_price * currentUsdRate,
         change24h: c.price_change_percentage_24h || 0,
-        color: getRandomColor()
+        color: getRandomColor(),
+        imageUrl: c.image
       }));
       setCryptos(newCryptos);
 
@@ -342,8 +344,16 @@ export default function InvestmentsTab({
                   return (
                     <div key={asset.id} className="p-4 grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center hover:bg-secondary/30 transition-colors">
                       <div className="flex items-center gap-3 w-32 md:w-48">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{ backgroundColor: asset.color }}>
-                          {asset.symbol[0]}
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: asset.color }}>
+                          <span>{asset.symbol[0]}</span>
+                          {asset.imageUrl && (
+                            <img 
+                              src={asset.imageUrl} 
+                              alt={asset.symbol} 
+                              className="w-full h-full object-cover absolute inset-0 bg-white" 
+                              onError={(e) => { e.currentTarget.style.opacity = '0'; }} 
+                            />
+                          )}
                         </div>
                         <div className="truncate">
                           <div className="font-bold truncate">{asset.symbol}</div>
