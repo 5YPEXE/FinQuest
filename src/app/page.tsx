@@ -5,6 +5,7 @@ import { Wallet, PieChart, TrendingUp, ArrowUpRight, ArrowDownRight, Bot, X, Che
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useFinanceData } from "../hooks/useFinanceData";
+import { useAIEngine, LessonContext } from "../hooks/useAIEngine";
 import TransactionsTab from "../components/TransactionsTab";
 import InvestmentsTab from "../components/InvestmentsTab";
 
@@ -25,6 +26,8 @@ export default function Home() {
     totalBalance, 
     monthlyExpense 
   } = useFinanceData();
+
+  const aiLesson = useAIEngine(transactions, totalBalance);
 
   // Load gamification progress
   useEffect(() => {
@@ -179,13 +182,13 @@ export default function Home() {
                 <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50 relative z-10 flex-1">
                   <p className="text-sm font-medium mb-2">💡 Yeni Bir Tespitim Var!</p>
                   <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                    Dışarıda çok sık kahve içtiğini fark ettim. &quot;Latte Faktörü&quot; hakkında kısa bir eğitim almak ister misin?
+                    {aiLesson.alertMessage}
                   </p>
                   <button 
                     onClick={() => setIsLessonOpen(true)}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] text-sm cursor-pointer shadow-lg shadow-primary/20"
                   >
-                    Latte Faktörünü Öğren
+                    Eğitimi Görüntüle
                   </button>
                 </div>
               </div>
@@ -227,7 +230,7 @@ export default function Home() {
       {/* AI Lesson Modal */}
       <AnimatePresence>
         {isLessonOpen && (
-          <LessonModal onClose={() => setIsLessonOpen(false)} onComplete={handleQuizComplete} />
+          <LessonModal lesson={aiLesson} onClose={() => setIsLessonOpen(false)} onComplete={handleQuizComplete} />
         )}
       </AnimatePresence>
     </div>
@@ -284,15 +287,15 @@ function TransactionItem({ name, category, date, amount, isIncome = false }: { n
 }
 
 // Modal Component
-function LessonModal({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) {
+function LessonModal({ lesson, onClose, onComplete }: { lesson: LessonContext; onClose: () => void; onComplete: () => void }) {
   const [step, setStep] = useState<"lesson" | "quiz" | "success">("lesson");
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   
   const handleAnswerSubmit = () => {
-    if (selectedAnswer === 1) { // 1 is the correct index
+    if (selectedAnswer === lesson.correctAnswerIdx) {
        setStep("success");
     } else {
-       alert("Tekrar düşün! Küçük harcamaların birikmesinden bahsediyorduk sanki?");
+       alert("Tekrar düşün! Yanlış cevap verdin.");
     }
   }
 
@@ -316,16 +319,13 @@ function LessonModal({ onClose, onComplete }: { onClose: () => void; onComplete:
            <div className="p-6 md:p-8">
              {step === "lesson" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                   <h2 className="text-2xl font-bold mb-4">☕ Latte Faktörü Nedir?</h2>
-                   <p className="text-muted-foreground mb-4 leading-relaxed">
-                     Küçük ve masum görünen günlük harcamaların (örneğin her gün içilen 150 TL&apos;lik kahvenin), uzun vadede nasıl devasa bir servete dönüşebileceğini gösteren finansal bir kavramdır.
+                   <h2 className="text-2xl font-bold mb-4">{lesson.title}</h2>
+                   <p className="text-muted-foreground mb-6 leading-relaxed text-lg">
+                     {lesson.description}
                    </p>
-                   <div className="bg-primary/10 p-4 rounded-xl text-primary font-medium mb-6">
-                     💡 Günde 150 TL, ayda 4.500 TL yapar. Bu parayı 10 yıl boyunca yıllık %10 getiri sağlayan bir fona yatırsaydın, bugün <strong>1 Milyon TL&apos;den fazla</strong> paran olabilirdi!
-                   </div>
                    <button 
                      onClick={() => setStep("quiz")}
-                     className="w-full py-3 bg-foreground text-background font-bold rounded-xl hover:opacity-90 transition-opacity cursor-pointer"
+                     className="w-full py-3 bg-foreground text-background font-bold rounded-xl hover:opacity-90 transition-opacity cursor-pointer mt-4"
                    >
                      Anladım, Teste Geç
                    </button>
@@ -335,14 +335,10 @@ function LessonModal({ onClose, onComplete }: { onClose: () => void; onComplete:
              {step === "quiz" && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                    <h2 className="text-xl font-bold mb-6">Hızlı Soru 🧠</h2>
-                   <p className="font-medium mb-4">Latte Faktörü&apos;nün temel amacı aşağıdakilerden hangisidir?</p>
+                   <p className="font-medium mb-4">{lesson.question}</p>
                    
                    <div className="space-y-3 mb-6">
-                      {[
-                        "Kahve içmeyi tamamen yasaklamak.",
-                        "Küçük düzenli masrafları yatırıma çevirerek uzun vadede zenginlik yaratmak.",
-                        "En ucuz kahveciyi bulup oradan alışveriş yapmak."
-                      ].map((answer, idx) => (
+                      {lesson.options.map((answer, idx) => (
                         <button 
                           key={idx}
                           onClick={() => setSelectedAnswer(idx)}
