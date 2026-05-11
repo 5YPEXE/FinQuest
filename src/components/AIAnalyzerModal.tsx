@@ -328,7 +328,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                   <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
                     <Activity className="w-4 h-4" /> Zaman Serisi Tahmini (90 Gün Geçmiş + 30 Gün Tahmin)
                   </h3>
-                  <p className="text-[10px] text-muted-foreground mb-4">Linear Regression + EMA blending · USD bazlı</p>
+                  <p className="text-[10px] text-muted-foreground mb-4">Linear Regression + EMA blending · {asset.currencySymbol === '₺' ? 'TRY' : 'USD'} bazlı</p>
                   <div className="h-52">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
@@ -343,8 +343,8 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                           </linearGradient>
                         </defs>
                         <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={14} stroke="#64748b" />
-                        <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} stroke="#64748b" tickFormatter={(v: number) => `$${v >= 1000 ? (v/1000).toFixed(1)+'K' : v.toFixed(0)}`} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', fontSize: '12px' }} formatter={(value: number) => [`$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`, '']} labelStyle={{ color: '#94a3b8' }} />
+                        <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} stroke="#64748b" tickFormatter={(v: number) => `${asset.currencySymbol}${v >= 1000 ? (v/1000).toFixed(1)+'K' : v.toFixed(0)}`} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', fontSize: '12px' }} formatter={(value: number) => [`${asset.currencySymbol}${value.toLocaleString(asset.currencySymbol === '₺' ? 'tr-TR' : 'en-US', { maximumFractionDigits: 2 })}`, '']} labelStyle={{ color: '#94a3b8' }} />
                         {forecastStart && <ReferenceLine x={forecastStart} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "Bugün", fill: "#f59e0b", fontSize: 10, position: "top" }} />}
                         <Area type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} fill="url(#gradHistory)" dot={false} name="Geçmiş" connectNulls={false} />
                         <Area type="monotone" dataKey="forecast" stroke="#6366f1" strokeWidth={2} strokeDasharray="6 3" fill="url(#gradForecast)" dot={false} name="Tahmin" connectNulls={false} />
