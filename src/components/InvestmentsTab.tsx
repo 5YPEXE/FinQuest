@@ -8,6 +8,39 @@ import AIAnalyzerModal from './AIAnalyzerModal';
 // BIST100 artık API'dan dinamik olarak geliyor - sabit listeye gerek yok
 const STOCK_COLORS = ['#e11d48','#0284c7','#16a34a','#0f766e','#b91c1c','#1d4ed8','#dc2626','#475569','#2563eb','#ea580c','#0369a1','#1e3a8a','#7c3aed','#059669','#d97706','#be185d','#4f46e5','#0891b2','#65a30d','#c026d3'];
 
+const BASE_CRYPTOS = [
+  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
+  { id: 'solana', symbol: 'SOL', name: 'Solana', image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
+  { id: 'binancecoin', symbol: 'BNB', name: 'BNB', image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
+  { id: 'ripple', symbol: 'XRP', name: 'XRP', image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
+  { id: 'cardano', symbol: 'ADA', name: 'Cardano', image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
+  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
+  { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' },
+  { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', image: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png' },
+  { id: 'tron', symbol: 'TRX', name: 'TRON', image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' },
+  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink', image: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
+  { id: 'matic-network', symbol: 'MATIC', name: 'Polygon', image: 'https://assets.coingecko.com/coins/images/4713/large/polygon.png' },
+  { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu', image: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png' },
+  { id: 'litecoin', symbol: 'LTC', name: 'Litecoin', image: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png' },
+  { id: 'uniswap', symbol: 'UNI', name: 'Uniswap', image: 'https://assets.coingecko.com/coins/images/12504/large/uni.jpg' },
+  { id: 'cosmos', symbol: 'ATOM', name: 'Cosmos', image: 'https://assets.coingecko.com/coins/images/1481/large/cosmos_hub.png' },
+  { id: 'stellar', symbol: 'XLM', name: 'Stellar', image: 'https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png' },
+  { id: 'near', symbol: 'NEAR', name: 'NEAR Protocol', image: 'https://assets.coingecko.com/coins/images/10365/large/near.jpg' },
+  { id: 'aptos', symbol: 'APT', name: 'Aptos', image: 'https://assets.coingecko.com/coins/images/26455/large/aptos_round.png' },
+  { id: 'sui', symbol: 'SUI', name: 'Sui', image: 'https://assets.coingecko.com/coins/images/26375/large/sui-ocean-square.png' },
+  { id: 'aave', symbol: 'AAVE', name: 'Aave', image: 'https://assets.coingecko.com/coins/images/12645/large/aave-token-round.png' },
+  { id: 'internet-computer', symbol: 'ICP', name: 'Internet Computer', image: 'https://assets.coingecko.com/coins/images/14495/large/Internet_Computer_logo.png' },
+  { id: 'filecoin', symbol: 'FIL', name: 'Filecoin', image: 'https://assets.coingecko.com/coins/images/12817/large/filecoin.png' },
+  { id: 'arbitrum', symbol: 'ARB', name: 'Arbitrum', image: 'https://assets.coingecko.com/coins/images/16547/large/photo_2023-03-29_21.47.00.jpeg' },
+  { id: 'optimism', symbol: 'OP', name: 'Optimism', image: 'https://assets.coingecko.com/coins/images/25244/large/Optimism.png' },
+  { id: 'injective-protocol', symbol: 'INJ', name: 'Injective', image: 'https://assets.coingecko.com/coins/images/12882/large/Secondary_Symbol.png' },
+  { id: 'render-token', symbol: 'RENDER', name: 'Render', image: 'https://assets.coingecko.com/coins/images/11636/large/rndr.png' },
+  { id: 'fetch-ai', symbol: 'FET', name: 'Fetch.ai', image: 'https://assets.coingecko.com/coins/images/5681/large/Fetch.jpg' },
+  { id: 'pepe', symbol: 'PEPE', name: 'Pepe', image: 'https://assets.coingecko.com/coins/images/29850/large/pepe-token.jpeg' },
+  { id: 'dogwifcoin', symbol: 'WIF', name: 'dogwifhat', image: 'https://assets.coingecko.com/coins/images/33566/large/dogwifhat.jpg' },
+];
+
 const MOCK_COMMODITIES = [
   { id: 'xau', symbol: 'XAU/TRY', name: 'Gram Altın', basePrice: 2450, color: '#eab308', imageUrl: 'https://img.icons8.com/color/96/gold-bars.png' },
   { id: 'xag', symbol: 'XAG/TRY', name: 'Gümüş', basePrice: 32, color: '#94a3b8', imageUrl: 'https://img.icons8.com/color/96/silver-bars.png' },
@@ -78,124 +111,140 @@ export default function InvestmentsTab({
   const [modalAction, setModalAction] = useState<'buy' | 'sell'>('buy');
   const [inputAmount, setInputAmount] = useState('');
 
-  // Initial Data Fetch for Crypto & Base Prices
+  // TradingView Scanner — doğrudan tarayıcıdan çek (Vercel timeout sorununu çözer)
+  const fetchTradingViewClient = async (market: string, body: object) => {
+    const res = await fetch(`https://scanner.tradingview.com/${market}/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) throw new Error(`TV ${market}: ${res.status}`);
+    return res.json();
+  };
+
   const fetchInitialData = async () => {
     setIsLoading(true);
-    const BASE_CRYPTOS = [
-      { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
-      { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
-      { id: 'solana', symbol: 'SOL', name: 'Solana', image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
-      { id: 'binancecoin', symbol: 'BNB', name: 'BNB', image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
-      { id: 'ripple', symbol: 'XRP', name: 'XRP', image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
-      { id: 'cardano', symbol: 'ADA', name: 'Cardano', image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
-      { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
-      { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' },
-      { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', image: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png' },
-      { id: 'tron', symbol: 'TRX', name: 'TRON', image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' },
-      { id: 'chainlink', symbol: 'LINK', name: 'Chainlink', image: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
-      { id: 'matic-network', symbol: 'MATIC', name: 'Polygon', image: 'https://assets.coingecko.com/coins/images/4713/large/polygon.png' },
-      { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu', image: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png' },
-      { id: 'litecoin', symbol: 'LTC', name: 'Litecoin', image: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png' },
-      { id: 'uniswap', symbol: 'UNI', name: 'Uniswap', image: 'https://assets.coingecko.com/coins/images/12504/large/uni.jpg' },
-      { id: 'cosmos', symbol: 'ATOM', name: 'Cosmos', image: 'https://assets.coingecko.com/coins/images/1481/large/cosmos_hub.png' },
-      { id: 'stellar', symbol: 'XLM', name: 'Stellar', image: 'https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png' },
-      { id: 'near', symbol: 'NEAR', name: 'NEAR Protocol', image: 'https://assets.coingecko.com/coins/images/10365/large/near.jpg' },
-      { id: 'aptos', symbol: 'APT', name: 'Aptos', image: 'https://assets.coingecko.com/coins/images/26455/large/aptos_round.png' },
-      { id: 'sui', symbol: 'SUI', name: 'Sui', image: 'https://assets.coingecko.com/coins/images/26375/large/sui-ocean-square.png' },
-      { id: 'aave', symbol: 'AAVE', name: 'Aave', image: 'https://assets.coingecko.com/coins/images/12645/large/aave-token-round.png' },
-      { id: 'internet-computer', symbol: 'ICP', name: 'Internet Computer', image: 'https://assets.coingecko.com/coins/images/14495/large/Internet_Computer_logo.png' },
-      { id: 'filecoin', symbol: 'FIL', name: 'Filecoin', image: 'https://assets.coingecko.com/coins/images/12817/large/filecoin.png' },
-      { id: 'arbitrum', symbol: 'ARB', name: 'Arbitrum', image: 'https://assets.coingecko.com/coins/images/16547/large/photo_2023-03-29_21.47.00.jpeg' },
-      { id: 'optimism', symbol: 'OP', name: 'Optimism', image: 'https://assets.coingecko.com/coins/images/25244/large/Optimism.png' },
-      { id: 'injective-protocol', symbol: 'INJ', name: 'Injective', image: 'https://assets.coingecko.com/coins/images/12882/large/Secondary_Symbol.png' },
-      { id: 'render-token', symbol: 'RENDER', name: 'Render', image: 'https://assets.coingecko.com/coins/images/11636/large/rndr.png' },
-      { id: 'fetch-ai', symbol: 'FET', name: 'Fetch.ai', image: 'https://assets.coingecko.com/coins/images/5681/large/Fetch.jpg' },
-      { id: 'pepe', symbol: 'PEPE', name: 'Pepe', image: 'https://assets.coingecko.com/coins/images/29850/large/pepe-token.jpeg' },
-      { id: 'dogwifcoin', symbol: 'WIF', name: 'dogwifhat', image: 'https://assets.coingecko.com/coins/images/33566/large/dogwifhat.jpg' },
-    ];
-
+    const newSparklines: Record<string, { value: number }[]> = {};
     let currentUsdRate = 38.5;
 
-    try {
-      const res = await fetch('/api/finance');
-      const data = await res.json();
-      
-      if (data.status === 'success') {
-        const { usd_rate, bist, commodities, crypto } = data;
-        setUsdRate(usd_rate);
-        currentUsdRate = usd_rate;
+    // === PARALEL: Tüm verileri aynı anda çek (tarayıcı + API) ===
+    const [bistRes, fxRes, cfdRes, futuresRes, apiRes] = await Promise.allSettled([
+      // Tarayıcıdan: BIST100
+      fetchTradingViewClient('turkey', {
+        filter: [{ left: 'exchange', operation: 'equal', right: 'BIST' }],
+        symbols: { query: { types: ['stock'] } },
+        columns: ['close', 'change', 'description', 'market_cap_basic'],
+        sort: { sortBy: 'market_cap_basic', sortOrder: 'desc' },
+        range: [0, 100]
+      }),
+      // Tarayıcıdan: USD/TRY kuru
+      fetchTradingViewClient('forex', {
+        symbols: { tickers: ['FX_IDC:USDTRY'], query: { types: [] } },
+        columns: ['close', 'change']
+      }),
+      // Tarayıcıdan: Emtia CFD (Altın, Gümüş)
+      fetchTradingViewClient('cfd', {
+        symbols: { tickers: ['TVC:GOLD', 'TVC:SILVER'], query: { types: [] } },
+        columns: ['close', 'change']
+      }),
+      // Tarayıcıdan: Emtia Futures (Petrol, Platin, Paladyum, Bakır)
+      fetchTradingViewClient('futures', {
+        symbols: { tickers: ['NYMEX:BZ1!', 'NYMEX:PL1!', 'NYMEX:PA1!', 'COMEX:HG1!'], query: { types: [] } },
+        columns: ['close', 'change']
+      }),
+      // API Route'dan: Binance kripto verileri
+      fetch('/api/finance').then(r => r.json())
+    ]);
 
-        // 1. Process Cryptos (zengin Binance verisi)
-        const newCryptos: Asset[] = BASE_CRYPTOS.map(bc => {
-          const cData = crypto.find((c: any) => c.symbol === bc.symbol);
-          const priceUsd = cData?.price || 0;
-          return {
-            id: bc.id,
-            symbol: bc.symbol,
-            name: bc.name,
-            priceUsd,
-            priceTry: priceUsd * currentUsdRate,
-            change24h: cData?.change || 0,
-            color: getRandomColor(),
-            imageUrl: bc.image,
-            volume: cData?.volume || 0,
-            high24h: cData?.high24h || 0,
-            low24h: cData?.low24h || 0,
-            trades: cData?.trades || 0
-          };
-        });
-        setCryptos(newCryptos);
+    // 1. USD/TRY Kuru
+    if (fxRes.status === 'fulfilled' && fxRes.value?.data?.[0]) {
+      currentUsdRate = fxRes.value.data[0].d[0] || 38.5;
+    }
+    setUsdRate(currentUsdRate);
 
-        // 2. Initialize Sparklines
-        const newSparklines: Record<string, { value: number }[]> = {};
-        newCryptos.forEach((c: Asset) => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
-
-        // 3. Process BIST100 (dinamik — API'dan geliyor)
-        const liveStocks: Asset[] = bist.map((b: any, idx: number) => {
-          const id = b.symbol.toLowerCase();
-          const priceTry = b.price || 0;
-          newSparklines[id] = generateMockSparkline(priceTry, 0.05);
-          return {
-            id,
-            symbol: b.symbol,
-            name: b.name || b.symbol,
-            priceTry,
-            priceUsd: priceTry / currentUsdRate,
-            change24h: b.change || 0,
-            color: STOCK_COLORS[idx % STOCK_COLORS.length],
-            imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${b.symbol.toLowerCase()}.com.tr`
-          };
-        });
-        setStocks(liveStocks);
-
-        // 4. Process Commodities
-        const liveCmds = MOCK_COMMODITIES.map(mc => {
-          const cData = commodities.find((c: any) => c.id === mc.id);
-          const priceTry = cData?.priceTry || mc.basePrice;
-          newSparklines[mc.id] = generateMockSparkline(priceTry, 0.03);
-          return { ...mc, priceTry, priceUsd: cData?.priceUsd || (priceTry / currentUsdRate), change24h: cData?.change || 0 };
-        });
-        setCommodities(liveCmds);
-        
-        setSparklines(newSparklines);
-        console.log(`✅ Tüm veriler çekildi: ${liveStocks.length} BIST hissesi, ${newCryptos.length} kripto, ${liveCmds.length} emtia.`);
-        if (data._debug) console.log('📊 API Debug:', data._debug);
-      } else {
-        throw new Error("API hatası");
-      }
-    } catch (err) {
-      console.warn("Yerel API hatası, mock veriler kullanılacak.", err);
+    // 2. Kripto (Binance — API route'dan)
+    if (apiRes.status === 'fulfilled' && apiRes.value?.status === 'success') {
+      const { crypto } = apiRes.value;
+      const newCryptos: Asset[] = BASE_CRYPTOS.map(bc => {
+        const cData = crypto.find((c: any) => c.symbol === bc.symbol);
+        const priceUsd = cData?.price || 0;
+        return {
+          id: bc.id, symbol: bc.symbol, name: bc.name,
+          priceUsd, priceTry: priceUsd * currentUsdRate,
+          change24h: cData?.change || 0, color: getRandomColor(), imageUrl: bc.image,
+          volume: cData?.volume || 0, high24h: cData?.high24h || 0, low24h: cData?.low24h || 0, trades: cData?.trades || 0
+        };
+      });
+      setCryptos(newCryptos);
+      newCryptos.forEach(c => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
+    } else {
+      console.warn('⚠️ Binance API hatası, mock kripto verileri kullanılıyor.');
       const mockCryptos = [
-        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', priceUsd: 80700, priceTry: 80700 * currentUsdRate, change24h: -1.8, color: '#f7931a', imageUrl: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
-        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', priceUsd: 2450, priceTry: 2450 * currentUsdRate, change24h: 1.2, color: '#627eea', imageUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
-        { id: 'solana', symbol: 'SOL', name: 'Solana', priceUsd: 145, priceTry: 145 * currentUsdRate, change24h: 4.5, color: '#14f195', imageUrl: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' }
+        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', priceUsd: 104000, priceTry: 104000 * currentUsdRate, change24h: 1.2, color: '#f7931a', imageUrl: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', priceUsd: 2500, priceTry: 2500 * currentUsdRate, change24h: -0.8, color: '#627eea', imageUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
       ];
       setCryptos(mockCryptos);
-      setStocks([]);
-      const initialCmds = MOCK_COMMODITIES.map(c => ({ ...c, priceTry: c.basePrice, priceUsd: c.basePrice / currentUsdRate, change24h: 0 }));
-      setCommodities(initialCmds);
     }
-    
+
+    // 3. BIST100 (TradingView — tarayıcıdan)
+    if (bistRes.status === 'fulfilled' && bistRes.value?.data) {
+      const liveStocks: Asset[] = bistRes.value.data.map((item: any, idx: number) => {
+        const symbol = item.s.replace('BIST:', '');
+        const id = symbol.toLowerCase();
+        const priceTry = item.d[0] || 0;
+        newSparklines[id] = generateMockSparkline(priceTry, 0.05);
+        return {
+          id, symbol, name: item.d[2] || symbol,
+          priceTry, priceUsd: priceTry / currentUsdRate,
+          change24h: item.d[1] || 0,
+          color: STOCK_COLORS[idx % STOCK_COLORS.length],
+          imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${symbol.toLowerCase()}.com.tr`
+        };
+      });
+      setStocks(liveStocks);
+      console.log(`✅ BIST100: ${liveStocks.length} hisse yüklendi.`);
+    } else {
+      console.warn('⚠️ BIST verisi alınamadı:', (bistRes as any).reason?.message || 'bilinmeyen hata');
+      setStocks([]);
+    }
+
+    // 4. Emtia (TradingView — tarayıcıdan)
+    const COMMODITY_CFD_MAP: Record<string, string> = { 'TVC:GOLD': 'xau', 'TVC:SILVER': 'xag' };
+    const COMMODITY_FUTURES_MAP: Record<string, string> = { 'NYMEX:BZ1!': 'brent', 'NYMEX:PL1!': 'xpt', 'NYMEX:PA1!': 'xpd', 'COMEX:HG1!': 'cop' };
+    const liveComPrices: Record<string, { priceUsd: number; change: number }> = {};
+
+    if (cfdRes.status === 'fulfilled' && cfdRes.value?.data) {
+      for (const item of cfdRes.value.data) {
+        const cid = COMMODITY_CFD_MAP[item.s];
+        if (!cid) continue;
+        let priceUsd = item.d[0] || 0;
+        if (cid === 'xau' || cid === 'xag') priceUsd = priceUsd / 31.1035;
+        liveComPrices[cid] = { priceUsd, change: item.d[1] || 0 };
+      }
+    }
+    if (futuresRes.status === 'fulfilled' && futuresRes.value?.data) {
+      for (const item of futuresRes.value.data) {
+        const cid = COMMODITY_FUTURES_MAP[item.s];
+        if (!cid) continue;
+        let priceUsd = item.d[0] || 0;
+        if (cid === 'xpt' || cid === 'xpd') priceUsd = priceUsd / 31.1035;
+        if (cid === 'cop') priceUsd = priceUsd / 0.453592;
+        liveComPrices[cid] = { priceUsd, change: item.d[1] || 0 };
+      }
+    }
+
+    const liveCmds = MOCK_COMMODITIES.map(mc => {
+      const live = liveComPrices[mc.id];
+      const priceTry = live ? live.priceUsd * currentUsdRate : mc.basePrice;
+      const priceUsd = live ? live.priceUsd : mc.basePrice / currentUsdRate;
+      newSparklines[mc.id] = generateMockSparkline(priceTry, 0.03);
+      return { ...mc, priceTry, priceUsd, change24h: live?.change || 0 };
+    });
+    setCommodities(liveCmds);
+
+    setSparklines(newSparklines);
+    console.log(`✅ Veri özeti: BIST ${bistRes.status === 'fulfilled' ? '✓' : '✗'} | FX ${fxRes.status === 'fulfilled' ? '✓' : '✗'} | Emtia CFD ${cfdRes.status === 'fulfilled' ? '✓' : '✗'} | Futures ${futuresRes.status === 'fulfilled' ? '✓' : '✗'} | Binance ${apiRes.status === 'fulfilled' ? '✓' : '✗'}`);
     setIsLoading(false);
   };
 
