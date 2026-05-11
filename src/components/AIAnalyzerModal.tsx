@@ -18,27 +18,35 @@ type AIAnalyzerModalProps = {
 
 // Mock News Generators based on Asset Name/Type
 const generateMockNews = (assetName: string, assetSymbol: string) => {
-  const isCrypto = ['BTC', 'ETH', 'USDT', 'SOL'].includes(assetSymbol) || assetName.toLowerCase().includes('coin');
+  const isCrypto = ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'TRX', 'LINK', 'DOT', 'AVAX'].includes(assetSymbol) || assetName.toLowerCase().includes('coin');
   const isBist = ['THYAO', 'ASELS', 'KCHOL', 'SASA', 'TUPRS'].includes(assetSymbol);
   
   if (isBist) {
     return [
-      { id: 1, source: "KAP", time: "2 saat önce", title: `${assetName} 3. Çeyrek Bilanço Beklentileri Revize Edildi.` },
-      { id: 2, source: "Bloomberg HT", time: "5 saat önce", title: `Yabancı fonların ${assetSymbol} hissesindeki alımları hızlandı.` },
-      { id: 3, source: "KAP", time: "1 gün önce", title: `${assetName} yeni yatırım teşvik belgesi aldı.` },
+      { id: 1, source: "KAP", time: "15 dakika önce", title: `${assetName} 3. Çeyrek Bilanço Beklentileri Revize Edildi.` },
+      { id: 2, source: "Bloomberg HT", time: "2 saat önce", title: `Yabancı fonların ${assetSymbol} hissesindeki alımları hızlandı.` },
+      { id: 3, source: "KAP", time: "4 saat önce", title: `${assetName} yeni yatırım teşvik belgesi aldı.` },
+      { id: 4, source: "Investing", time: "7 saat önce", title: `Aracı kurumlar ${assetSymbol} için hedef fiyatı yukarı yönlü güncelledi.` },
+      { id: 5, source: "Reuters", time: "12 saat önce", title: `Global ekonomik veriler ${assetName} sektöründe iyimserlik yaratıyor.` },
+      { id: 6, source: "KAP", time: "1 gün önce", title: `${assetName} yönetim kurulundan bedelsiz sermaye artırımı kararı!` },
     ];
   } else if (isCrypto) {
     return [
-      { id: 1, source: "CoinDesk", time: "1 saat önce", title: `SEC'in son kararı sonrası ${assetName} işlem hacminde patlama yaşandı.` },
-      { id: 2, source: "CoinTelegraph", time: "3 saat önce", title: `Kurumsal balinalar yüklü miktarda ${assetSymbol} transferi gerçekleştirdi.` },
-      { id: 3, source: "Reuters", time: "12 saat önce", title: `Global piyasalardaki risk iştahı ${assetName} fiyatını destekliyor.` },
+      { id: 1, source: "CoinDesk", time: "20 dakika önce", title: `SEC'in son kararı sonrası ${assetName} işlem hacminde patlama yaşandı.` },
+      { id: 2, source: "Whale Alert", time: "1 saat önce", title: `Bilinmeyen bir cüzdandan borsalara devasa ${assetSymbol} transferi gerçekleşti.` },
+      { id: 3, source: "CoinTelegraph", time: "3 saat önce", title: `Kurumsal balinalar yüklü miktarda ${assetName} toplamaya devam ediyor.` },
+      { id: 4, source: "Decrypt", time: "5 saat önce", title: `${assetSymbol} ağındaki aktif adres sayısı tüm zamanların en yüksek seviyesinde.` },
+      { id: 5, source: "Reuters", time: "10 saat önce", title: `Global piyasalardaki risk iştahı ${assetName} fiyatını destekliyor.` },
+      { id: 6, source: "Bloomberg", time: "18 saat önce", title: `Asya merkezli fonların kripto paralara ilgisi yeniden artıyor.` },
     ];
   } else {
     // Commodities
     return [
-      { id: 1, source: "Investing", time: "4 saat önce", title: `FED'in faiz kararı ${assetName} fiyatlamalarını doğrudan etkiledi.` },
-      { id: 2, source: "Reuters", time: "8 saat önce", title: `Küresel arz endişeleri ${assetSymbol} piyasasında oynaklık yarattı.` },
-      { id: 3, source: "Bloomberg", time: "1 gün önce", title: `Merkez bankalarının ${assetName} talebi rekor seviyelere ulaştı.` },
+      { id: 1, source: "Investing", time: "45 dakika önce", title: `FED'in faiz açıklamaları ${assetName} fiyatlamalarını doğrudan etkiledi.` },
+      { id: 2, source: "Reuters", time: "2 saat önce", title: `Küresel arz endişeleri ${assetSymbol} piyasasında oynaklık yarattı.` },
+      { id: 3, source: "Bloomberg", time: "5 saat önce", title: `Merkez bankalarının ${assetName} rezerv talebi rekor seviyelere ulaştı.` },
+      { id: 4, source: "Finans Gündem", time: "9 saat önce", title: `Ortadoğu'daki jeopolitik gerilimler güvenli liman ${assetSymbol} alımlarını hızlandırdı.` },
+      { id: 5, source: "Wall Street Journal", time: "14 saat önce", title: `Çin'den gelen ekonomik veriler ${assetName} piyasası için karışık sinyaller veriyor.` },
     ];
   }
 };
