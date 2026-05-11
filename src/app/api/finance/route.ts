@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // Configuration
-const BIST_SYMBOLS = ['THYAO.IS', 'ASELS.IS', 'EREGL.IS', 'KCHOL.IS', 'TUPRS.IS', 'GARAN.IS', 'SISE.IS', 'BIMAS.IS', 'AKBNK.IS', 'YKBNK.IS'];
+const BIST_SYMBOLS = ['THYAO.IS', 'ASELS.IS', 'EREGL.IS', 'KCHOL.IS', 'TUPRS.IS', 'GARAN.IS', 'BIMAS.IS', 'AKBNK.IS', 'YKBNK.IS', 'SASA.IS', 'FROTO.IS', 'TTKOM.IS', 'SAHOL.IS', 'TOASO.IS', 'PGSUS.IS', 'SISE.IS'];
 const COMMODITY_YAHOO: Record<string, string> = { 'xau': 'GC=F', 'xag': 'SI=F', 'xpt': 'PL=F', 'xpd': 'PA=F', 'cop': 'HG=F', 'brent': 'BZ=F' };
 const CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'TRXUSDT'];
 
@@ -10,11 +10,27 @@ export async function GET() {
     // 1. Fetch everything in parallel
     const [rateRes, yahooRes, binanceRes] = await Promise.allSettled([
       // USD/TRY Rate
-      fetch('https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTRY=X', { next: { revalidate: 60 } }).then(r => r.json()),
-      // BIST & Commodities combined (Yahoo allows multiple symbols)
-      fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${BIST_SYMBOLS.join(',')},${Object.values(COMMODITY_YAHOO).join(',')}`, { next: { revalidate: 60 } }).then(r => r.json()),
-      // Crypto from Binance
-      fetch('https://api.binance.com/api/v3/ticker/24hr', { next: { revalidate: 30 } }).then(r => r.json())
+      fetch('https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTRY=X', { 
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Referer': 'https://finance.yahoo.com/'
+        },
+        next: { revalidate: 30 } 
+      }).then(r => r.json()),
+      // BIST & Commodities combined
+      fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${BIST_SYMBOLS.join(',')},${Object.values(COMMODITY_YAHOO).join(',')}`, { 
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Referer': 'https://finance.yahoo.com/'
+        },
+        next: { revalidate: 30 } 
+      }).then(r => r.json()),
+      // Crypto from Binance - ONLY FETCH NEEDED SYMBOLS TO STAY UNDER 2MB
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(CRYPTO_SYMBOLS)}`, { 
+        next: { revalidate: 30 } 
+      }).then(r => r.json())
     ]);
 
     // 2. Process USD/TRY
