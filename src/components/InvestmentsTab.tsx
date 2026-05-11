@@ -108,111 +108,73 @@ export default function InvestmentsTab({
     let currentUsdRate = 32.5;
 
     try {
-      // 1. Fetch USD/TRY rate from Yahoo Finance (more reliable than CG)
-      const rateRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTRY=X')}`);
-      const rateData = await rateRes.json();
-      const rateParsed = JSON.parse(rateData.contents);
-      currentUsdRate = rateParsed.quoteResponse?.result?.[0]?.regularMarketPrice || 32.5;
-      setUsdRate(currentUsdRate);
-
-      // 2. Fetch Prices from Binance
-      const binanceRes = await fetch('https://api.binance.com/api/v3/ticker/24hr');
-      const binanceData = await binanceRes.json();
-
-      const newCryptos = BASE_CRYPTOS.map(bc => {
-        const bItem = binanceData.find((item: any) => item.symbol === bc.b);
-        const priceUsd = parseFloat(bItem?.lastPrice || '0') || 0;
-        const change = parseFloat(bItem?.priceChangePercent || '0') || 0;
-        return {
-          id: bc.id,
-          symbol: bc.symbol,
-          name: bc.name,
-          priceUsd: priceUsd,
-          priceTry: priceUsd * currentUsdRate,
-          change24h: change,
-          color: getRandomColor(),
-          imageUrl: bc.image
-        };
-      });
-      setCryptos(newCryptos);
-      console.log("✅ Kripto verileri Binance'den çekildi.");
-
-      // 3. Initialize Sparklines for cryptos
-      const newSparklines: Record<string, { value: number }[]> = {};
-      newCryptos.forEach((c: Asset) => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
-
-      // 4 & 5. Fetch BIST Stocks and Commodities in parallel from Yahoo Finance
-      const BIST_SYMBOLS = MOCK_STOCKS.map(s => `${s.symbol}.IS`).join(',');
-      const COMMODITY_YAHOO: Record<string, string> = { 'xau': 'GC=F', 'xag': 'SI=F', 'xpt': 'PL=F', 'xpd': 'PA=F', 'cop': 'HG=F', 'brent': 'BZ=F' };
-      const COMMODITY_SYMBOLS = Object.values(COMMODITY_YAHOO).join(',');
-
-      const [bistPromise, cmdsPromise] = await Promise.allSettled([
-        fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${BIST_SYMBOLS}`)}`, { signal: AbortSignal.timeout(15000) }).then(r => r.json()),
-        fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${COMMODITY_SYMBOLS}`)}`, { signal: AbortSignal.timeout(15000) }).then(r => r.json())
-      ]);
-
-      let stocksFetched = false;
-      if (bistPromise.status === 'fulfilled') {
-        try {
-          const parsed = JSON.parse(bistPromise.value.contents);
-          if (parsed.quoteResponse?.result?.length > 0) {
-            const results = parsed.quoteResponse.result;
-            const liveStocks = MOCK_STOCKS.map(ms => {
-              const yItem = results.find((r: any) => r.symbol === `${ms.symbol}.IS`);
-              const priceTry = yItem?.regularMarketPrice || ms.basePrice;
-              const change = yItem?.regularMarketChangePercent || ((Math.random() * 4) - 1.5);
-              newSparklines[ms.id] = generateMockSparkline(priceTry, 0.05);
-              return { ...ms, priceTry, priceUsd: priceTry / currentUsdRate, change24h: change };
-            });
-            setStocks(liveStocks);
-            stocksFetched = true;
-            console.log("✅ BIST verileri Yahoo Finance'den çekildi.");
-          }
-        } catch (e) { console.warn("Yahoo Finance BIST parse hatası.", e); }
-      }
-
-      if (!stocksFetched) {
-        const initialStocks = MOCK_STOCKS.map(s => {
-          newSparklines[s.id] = generateMockSparkline(s.basePrice, 0.05);
-          return { ...s, priceTry: s.basePrice, priceUsd: s.basePrice / currentUsdRate, change24h: (Math.random() * 4) - 1.5 };
-        });
-        setStocks(initialStocks);
-      }
-
-      let cmdsFetched = false;
-      if (cmdsPromise.status === 'fulfilled') {
-        try {
-          const cParsed = JSON.parse(cmdsPromise.value.contents);
-          if (cParsed.quoteResponse?.result?.length > 0) {
-            const cResults = cParsed.quoteResponse.result;
-            const liveCmds = MOCK_COMMODITIES.map(mc => {
-              const yahooSym = COMMODITY_YAHOO[mc.id];
-              const cItem = cResults.find((r: any) => r.symbol === yahooSym);
-              let priceUsd = cItem?.regularMarketPrice || mc.basePrice / currentUsdRate;
-              if (mc.id === 'xau' || mc.id === 'xag') priceUsd = priceUsd / 31.1035; // oz -> gram
-              const priceTry = priceUsd * currentUsdRate;
-              const change = cItem?.regularMarketChangePercent || ((Math.random() * 2) - 0.5);
-              newSparklines[mc.id] = generateMockSparkline(priceTry, 0.03);
-              return { ...mc, priceTry, priceUsd, change24h: change };
-            });
-            setCommodities(liveCmds);
-            cmdsFetched = true;
-            console.log("✅ Emtia verileri Yahoo Finance'den çekildi.");
-          }
-        } catch (e) { console.warn("Yahoo Finance Emtia parse hatası.", e); }
-      }
-
-      if (!cmdsFetched) {
-        const initialCmds = MOCK_COMMODITIES.map(c => {
-          newSparklines[c.id] = generateMockSparkline(c.basePrice, 0.03);
-          return { ...c, priceTry: c.basePrice, priceUsd: c.basePrice / currentUsdRate, change24h: (Math.random() * 2) - 0.5 };
-        });
-        setCommodities(initialCmds);
-      }
+      const res = await fetch('/api/finance');
+      const data = await res.json();
       
-      setSparklines(newSparklines);
+      if (data.status === 'success') {
+        const { usd_rate, bist, commodities, crypto } = data;
+        setUsdRate(usd_rate);
+        currentUsdRate = usd_rate;
+
+        // 1. Process Cryptos
+        const newCryptos = BASE_CRYPTOS.map(bc => {
+          const cData = crypto.find((c: any) => c.symbol === bc.symbol);
+          const priceUsd = cData?.price || 0;
+          return {
+            id: bc.id,
+            symbol: bc.symbol,
+            name: bc.name,
+            priceUsd: priceUsd,
+            priceTry: priceUsd * currentUsdRate,
+            change24h: cData?.change || 0,
+            color: getRandomColor(),
+            imageUrl: bc.image
+          };
+        });
+        setCryptos(newCryptos);
+
+        // 2. Initialize Sparklines
+        const newSparklines: Record<string, { value: number }[]> = {};
+        newCryptos.forEach((c: Asset) => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
+
+        // 3. Process BIST
+        const liveStocks = MOCK_STOCKS.map(ms => {
+          const bData = bist.find((b: any) => b.symbol === ms.symbol);
+          const priceTry = bData?.price || ms.basePrice;
+          newSparklines[ms.id] = generateMockSparkline(priceTry, 0.05);
+          return { ...ms, priceTry, priceUsd: priceTry / currentUsdRate, change24h: bData?.change || 0 };
+        });
+        setStocks(liveStocks);
+
+        // 4. Process Commodities
+        const liveCmds = MOCK_COMMODITIES.map(mc => {
+          const cData = commodities.find((c: any) => c.id === mc.id);
+          const priceTry = cData?.priceTry || mc.basePrice;
+          newSparklines[mc.id] = generateMockSparkline(priceTry, 0.03);
+          return { ...mc, priceTry, priceUsd: cData?.priceUsd || (priceTry / currentUsdRate), change24h: cData?.change || 0 };
+        });
+        setCommodities(liveCmds);
+        
+        setSparklines(newSparklines);
+        console.log("✅ Tüm veriler yerel API üzerinden başarıyla çekildi.");
+      } else {
+        throw new Error("API hatası");
+      }
     } catch (err) {
-      console.warn("Veri işleme hatası:", err);
+      console.warn("Yerel API hatası, mock veriler kullanılacak.", err);
+      // Fallback logic remains the same...
+      const mockCryptos = [
+        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', priceUsd: 80700, priceTry: 80700 * currentUsdRate, change24h: -1.8, color: '#f7931a', imageUrl: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', priceUsd: 2450, priceTry: 2450 * currentUsdRate, change24h: 1.2, color: '#627eea', imageUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
+        { id: 'solana', symbol: 'SOL', name: 'Solana', priceUsd: 145, priceTry: 145 * currentUsdRate, change24h: 4.5, color: '#14f195', imageUrl: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' }
+      ];
+      setCryptos(mockCryptos);
+      
+      const initialStocks = MOCK_STOCKS.map(s => ({ ...s, priceTry: s.basePrice, priceUsd: s.basePrice / currentUsdRate, change24h: 0 }));
+      setStocks(initialStocks);
+      
+      const initialCmds = MOCK_COMMODITIES.map(c => ({ ...c, priceTry: c.basePrice, priceUsd: c.basePrice / currentUsdRate, change24h: 0 }));
+      setCommodities(initialCmds);
     }
     
     setIsLoading(false);
