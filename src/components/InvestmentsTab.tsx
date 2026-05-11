@@ -484,7 +484,8 @@ export default function InvestmentsTab({
               symbol: assetToAnalyze.symbol,
               currentPrice: currency === 'try' ? assetToAnalyze.priceTry : assetToAnalyze.priceUsd,
               currencySymbol: currencySymbol,
-              change24h: assetToAnalyze.change24h
+              change24h: assetToAnalyze.change24h,
+              sparkline: sparklines[assetToAnalyze.id] || []
             }}
             onClose={() => setAssetToAnalyze(null)} 
           />
