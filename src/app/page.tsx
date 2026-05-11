@@ -88,10 +88,6 @@ export default function Home() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        // When auth changes (e.g. login), reload page to sync properly
-        window.location.reload();
-      }
     });
 
     return () => subscription.unsubscribe();
@@ -239,8 +235,8 @@ export default function Home() {
               <MetricCard title="Aylık Harcama" amount={`₺${monthlyExpense.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`} trend="Geçmiş işlemlere göre" isPositive={false} />
               
               <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md col-span-1 md:col-span-2 relative overflow-hidden transition-colors">
-                <div className="absolute right-6 top-6 bottom-6 w-32 flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="absolute right-6 top-6 bottom-6 w-32 flex items-center justify-center min-w-[128px] min-h-[128px]">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <PieChart>
                       <Pie data={pieData} innerRadius={30} outerRadius={50} paddingAngle={5} dataKey="value" stroke="none">
                         {pieData.map((entry, index) => (
@@ -340,8 +336,8 @@ export default function Home() {
               <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md relative overflow-hidden transition-colors h-64">
                 <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><PieChartIcon className="w-4 h-4 text-primary" /> Portföy Varlık Dağılımı</h3>
                 <div className="flex-1 flex items-center">
-                  <div className="w-1/2 h-full relative">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="w-1/2 h-full relative min-h-[150px]">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <PieChart>
                         <Pie data={assetDistribution.length > 0 ? assetDistribution : [{ name: 'Boş', value: 1, color: '#334155' }]} innerRadius={35} outerRadius={60} paddingAngle={2} dataKey="value" stroke="none">
                           {(assetDistribution.length > 0 ? assetDistribution : [{ name: 'Boş', value: 1, color: '#334155' }]).map((entry, index) => (

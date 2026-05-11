@@ -330,7 +330,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                   </h3>
                   <p className="text-[10px] text-muted-foreground mb-4">Linear Regression + EMA blending · {asset.currencySymbol === '₺' ? 'TRY' : 'USD'} bazlı</p>
                   <div className="h-52">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                         <defs>
                           <linearGradient id="gradHistory" x1="0" y1="0" x2="0" y2="1">

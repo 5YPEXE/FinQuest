@@ -444,7 +444,7 @@ export default function InvestmentsTab({
                       {/* Mini Chart */}
                       <div className="h-10 w-full px-2 max-w-[120px] hidden md:block opacity-60 hover:opacity-100 transition-opacity">
                         {sparklines[asset.id] && (
-                          <ResponsiveContainer width="100%" height="100%">
+                          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <LineChart data={sparklines[asset.id]}>
                               <YAxis domain={['dataMin', 'dataMax']} hide />
                               <Line type="monotone" dataKey="value" stroke={isPositive ? '#10b981' : '#f43f5e'} strokeWidth={2} dot={false} isAnimationActive={false} />
