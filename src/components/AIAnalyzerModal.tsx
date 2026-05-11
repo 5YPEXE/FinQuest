@@ -22,8 +22,10 @@ type NewsItem = {
   title: string;
   source: string;
   time: string;
+  exactDate: string; // "11 May 08:30" gibi kesin tarih
   url: string;
-  isLive: boolean; // true = gerçek haber, false = simülasyon
+  isLive: boolean;
+  publishedAt: number; // timestamp for sorting
 };
 
 // ============================================================
@@ -45,7 +47,7 @@ const fetchLiveNews = async (assetName: string, assetSymbol: string): Promise<Ne
       throw new Error("RSS2JSON returned no items");
     }
     
-    const newsItems: NewsItem[] = data.items.slice(0, 8).map((item: any, idx: number) => {
+    const newsItems: NewsItem[] = data.items.slice(0, 10).map((item: any, idx: number) => {
       const pubDate = item.pubDate || "";
       const publishedAt = new Date(pubDate);
       const now = new Date();
@@ -55,9 +57,13 @@ const fetchLiveNews = async (assetName: string, assetSymbol: string): Promise<Ne
       const diffDays = Math.floor(diffMs / 86400000);
       
       let timeStr = "";
-      if (diffMins < 60) timeStr = `${Math.max(1, diffMins)} dakika önce`;
+      if (diffMins < 60) timeStr = `${Math.max(1, diffMins)} dk önce`;
       else if (diffHours < 24) timeStr = `${diffHours} saat önce`;
       else timeStr = `${diffDays} gün önce`;
+      
+      // Kesin tarih formatı: "11 May 08:30"
+      const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+      const exactDate = `${publishedAt.getDate()} ${months[publishedAt.getMonth()]} ${String(publishedAt.getHours()).padStart(2, '0')}:${String(publishedAt.getMinutes()).padStart(2, '0')}`;
       
       // Başlıktan " - KaynakAdı" kısmını çıkar
       const cleanTitle = (item.title || "").replace(/ - [^-]+$/, "").trim();
@@ -70,10 +76,15 @@ const fetchLiveNews = async (assetName: string, assetSymbol: string): Promise<Ne
         title: cleanTitle,
         source: source,
         time: timeStr,
+        exactDate: exactDate,
         url: item.link || item.guid || "",
-        isLive: true
+        isLive: true,
+        publishedAt: publishedAt.getTime()
       };
     });
+    
+    // En yeni haberler en üstte
+    newsItems.sort((a, b) => b.publishedAt - a.publishedAt);
     
     return newsItems;
   } catch (error) {
@@ -100,26 +111,26 @@ const generateMockNews = (assetName: string, assetSymbol: string): NewsItem[] =>
       { id: 5, source: "Reuters", time: "12 saat önce", title: `Global ekonomik veriler ${assetName} sektöründe iyimserlik yaratıyor.` },
       { id: 6, source: "KAP", time: "1 gün önce", title: `${assetName} yönetim kurulundan bedelsiz sermaye artırımı kararı!` },
     ];
-    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false }));
+    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false, exactDate: '', publishedAt: 0 }));
   } else if (isCrypto) {
     const items = [
-      { id: 1, source: "CoinDesk", time: "20 dakika önce", title: `SEC'in son kararı sonrası ${assetName} işlem hacminde patlama yaşandı.` },
+      { id: 1, source: "CoinDesk", time: "20 dk önce", title: `SEC'in son kararı sonrası ${assetName} işlem hacminde patlama yaşandı.` },
       { id: 2, source: "Whale Alert", time: "1 saat önce", title: `Bilinmeyen bir cüzdandan borsalara devasa ${assetSymbol} transferi gerçekleşti.` },
       { id: 3, source: "CoinTelegraph", time: "3 saat önce", title: `Kurumsal balinalar yüklü miktarda ${assetName} toplamaya devam ediyor.` },
       { id: 4, source: "Decrypt", time: "5 saat önce", title: `${assetSymbol} ağındaki aktif adres sayısı tüm zamanların en yüksek seviyesinde.` },
       { id: 5, source: "Reuters", time: "10 saat önce", title: `Global piyasalardaki risk iştahı ${assetName} fiyatını destekliyor.` },
       { id: 6, source: "Bloomberg", time: "18 saat önce", title: `Asya merkezli fonların kripto paralara ilgisi yeniden artıyor.` },
     ];
-    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false }));
+    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false, exactDate: '', publishedAt: 0 }));
   } else {
     const items = [
-      { id: 1, source: "Investing", time: "45 dakika önce", title: `FED'in faiz açıklamaları ${assetName} fiyatlamalarını doğrudan etkiledi.` },
+      { id: 1, source: "Investing", time: "45 dk önce", title: `FED'in faiz açıklamaları ${assetName} fiyatlamalarını doğrudan etkiledi.` },
       { id: 2, source: "Reuters", time: "2 saat önce", title: `Küresel arz endişeleri ${assetSymbol} piyasasında oynaklık yarattı.` },
       { id: 3, source: "Bloomberg", time: "5 saat önce", title: `Merkez bankalarının ${assetName} rezerv talebi rekor seviyelere ulaştı.` },
       { id: 4, source: "Finans Gündem", time: "9 saat önce", title: `Ortadoğu'daki jeopolitik gerilimler güvenli liman ${assetSymbol} alımlarını hızlandırdı.` },
       { id: 5, source: "Wall Street Journal", time: "14 saat önce", title: `Çin'den gelen ekonomik veriler ${assetName} piyasası için karışık sinyaller veriyor.` },
     ];
-    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false }));
+    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false, exactDate: '', publishedAt: 0 }));
   }
 };
 
@@ -335,6 +346,9 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                             {item.source}
                             <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </span>
+                          {item.exactDate && (
+                            <span className="text-muted-foreground/60">{item.exactDate}</span>
+                          )}
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {item.time}</span>
                         </div>
                       </div>
