@@ -54,7 +54,7 @@ export default function InvestmentsTab({
 }: {
   portfolio: PortfolioItem[];
   onBuyCrypto: (id: string, symbol: string, name: string, price: number, amount: number) => void;
-  onSellCrypto: (id: string, name: string, amountToSell: number, currentPrice: number) => boolean;
+  onSellCrypto: (id: string, name: string, amountToSell: number, currentPrice: number) => Promise<boolean> | boolean;
   totalBalance: number;
 }) {
   const [cryptos, setCryptos] = useState<Asset[]>([]);

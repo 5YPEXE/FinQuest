@@ -243,7 +243,7 @@ export default function Home() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <RechartsTooltip formatter={(value: number) => `₺${value.toLocaleString('tr-TR')}`} contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                      <RechartsTooltip formatter={(value: any) => `₺${Number(value).toLocaleString('tr-TR')}`} contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -344,7 +344,7 @@ export default function Home() {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        {assetDistribution.length > 0 && <RechartsTooltip formatter={(value: number) => `₺${value.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`} contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />}
+                        {assetDistribution.length > 0 && <RechartsTooltip formatter={(value: any) => `₺${Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`} contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />}
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
