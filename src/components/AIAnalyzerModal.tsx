@@ -8,11 +8,12 @@ type NewsItem = { id: number; title: string; source: string; time: string; exact
 type ChartPoint = { date: string; price?: number; forecast?: number };
 type AIAnalyzerModalProps = {
   asset: { id: string; name: string; symbol: string; currentPrice: number; currencySymbol: string; change24h: number; sparkline?: { value: number }[]; };
+  usdRate?: number;
   onClose: () => void;
 };
 
 // ==================== ZAMAN SERİSİ ANALİZİ ====================
-const fetchHistoricalPrices = async (assetId: string, sparkline?: { value: number }[], currentPrice?: number): Promise<{ prices: number[]; dates: string[] }> => {
+const fetchHistoricalPrices = async (assetId: string, sparkline?: { value: number }[], currentPrice?: number, isTry?: boolean, usdRate?: number): Promise<{ prices: number[]; dates: string[] }> => {
   const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
   
   // Yöntem 1: CoinGecko API (kripto paralar için)
@@ -20,8 +21,9 @@ const fetchHistoricalPrices = async (assetId: string, sparkline?: { value: numbe
     const res = await fetch(`https://api.coingecko.com/api/v3/coins/${assetId}/market_chart?vs_currency=usd&days=90&interval=daily`, { signal: AbortSignal.timeout(6000) });
     const data = await res.json();
     if (data.prices?.length > 10) {
+      const rate = (isTry && usdRate) ? usdRate : 1;
       return {
-        prices: data.prices.map((p: number[]) => p[1]),
+        prices: data.prices.map((p: number[]) => p[1] * rate),
         dates: data.prices.map((p: number[]) => { const d = new Date(p[0]); return `${d.getDate()} ${months[d.getMonth()]}`; })
       };
     }
@@ -232,7 +234,7 @@ const predict = (name: string, price: number, change24h: number, newsItems: News
 };
 
 // ==================== COMPONENT ====================
-export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps) {
+export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAnalyzerModalProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [loadingText, setLoadingText] = useState("KAP ve Global Haberler Taranıyor...");
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -244,9 +246,10 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
   useEffect(() => {
     const run = async () => {
       // Parallel: haberler + geçmiş fiyatlar
+      const isTry = asset.currencySymbol === '₺';
       const [live, hist] = await Promise.all([
-        fetchLiveNews(asset.name, asset.symbol),
-        fetchHistoricalPrices(asset.id, asset.sparkline, asset.currentPrice)
+        fetchLiveNews(asset.name, asset.symbol).catch(() => []),
+        fetchHistoricalPrices(asset.id, asset.sparkline, asset.currentPrice, isTry, usdRate)
       ]);
       let finalNews: NewsItem[];
       if (live.length > 0) { finalNews = live; setIsNewsLive(true); }

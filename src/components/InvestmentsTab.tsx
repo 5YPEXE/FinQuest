@@ -497,6 +497,7 @@ export default function InvestmentsTab({
               change24h: assetToAnalyze.change24h,
               sparkline: sparklines[assetToAnalyze.id] || []
             }}
+            usdRate={usdRate}
             onClose={() => setAssetToAnalyze(null)} 
           />
         )}
