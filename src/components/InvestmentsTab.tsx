@@ -107,12 +107,19 @@ export default function InvestmentsTab({
       fetchedCryptos = await cryptoRes.json();
     } catch (error) {
       console.warn("API hatası (Adblocker veya Limit). Mock veriler kullanılıyor.");
-      // Fallback
       fetchedCryptos = [
         { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', current_price: 65000, price_change_percentage_24h: 2.5, image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
         { id: 'ethereum', symbol: 'eth', name: 'Ethereum', current_price: 3500, price_change_percentage_24h: 1.2, image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
         { id: 'tether', symbol: 'usdt', name: 'Tether', current_price: 1, price_change_percentage_24h: 0.01, image: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
-        { id: 'solana', symbol: 'sol', name: 'Solana', current_price: 150, price_change_percentage_24h: -1.5, image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' }
+        { id: 'solana', symbol: 'sol', name: 'Solana', current_price: 150, price_change_percentage_24h: -1.5, image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
+        { id: 'binancecoin', symbol: 'bnb', name: 'BNB', current_price: 600, price_change_percentage_24h: 0.8, image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
+        { id: 'ripple', symbol: 'xrp', name: 'XRP', current_price: 0.6, price_change_percentage_24h: -0.5, image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
+        { id: 'cardano', symbol: 'ada', name: 'Cardano', current_price: 0.45, price_change_percentage_24h: -2.1, image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
+        { id: 'dogecoin', symbol: 'doge', name: 'Dogecoin', current_price: 0.15, price_change_percentage_24h: 5.4, image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
+        { id: 'tron', symbol: 'trx', name: 'TRON', current_price: 0.12, price_change_percentage_24h: 1.1, image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' },
+        { id: 'chainlink', symbol: 'link', name: 'Chainlink', current_price: 15, price_change_percentage_24h: 3.2, image: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
+        { id: 'polkadot', symbol: 'dot', name: 'Polkadot', current_price: 7.2, price_change_percentage_24h: -1.8, image: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png' },
+        { id: 'avalanche-2', symbol: 'avax', name: 'Avalanche', current_price: 35, price_change_percentage_24h: 4.5, image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' }
       ];
     }
 
