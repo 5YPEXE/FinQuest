@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PortfolioItem } from '../hooks/useFinanceData';
-import { RefreshCw, TrendingUp, TrendingDown, Search, X, DollarSign, Pickaxe, Building2, Coins } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
+import { RefreshCw, TrendingUp, TrendingDown, Search, X, Pickaxe, Building2, Coins, DollarSign, Bot } from 'lucide-react';
+import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
+import AIAnalyzerModal from './AIAnalyzerModal';
 
 const MOCK_STOCKS = [
   { id: 'thyao', symbol: 'THYAO', name: 'Türk Hava Yolları', basePrice: 310, color: '#e11d48', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=turkishairlines.com' },
@@ -84,6 +85,7 @@ export default function InvestmentsTab({
   
   // Modal State
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [assetToAnalyze, setAssetToAnalyze] = useState<Asset | null>(null);
   const [modalAction, setModalAction] = useState<'buy' | 'sell'>('buy');
   const [inputAmount, setInputAmount] = useState('');
 
@@ -396,6 +398,9 @@ export default function InvestmentsTab({
                       </div>
                       
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                        <button onClick={() => setAssetToAnalyze(asset)} className="p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors" title="AI Analizi">
+                          <Bot className="w-4 h-4" />
+                        </button>
                         <button onClick={() => openModal(asset, 'buy')} className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary hover:text-white transition-colors">Al</button>
                         <button onClick={() => openModal(asset, 'sell')} className="px-3 py-1.5 bg-secondary text-foreground text-xs font-bold rounded-lg hover:bg-border transition-colors">Sat</button>
                       </div>
@@ -459,6 +464,22 @@ export default function InvestmentsTab({
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* AI Analyzer Modal */}
+      <AnimatePresence>
+        {assetToAnalyze && (
+          <AIAnalyzerModal 
+            asset={{
+              id: assetToAnalyze.id,
+              name: assetToAnalyze.name,
+              symbol: assetToAnalyze.symbol,
+              priceTry: assetToAnalyze.priceTry,
+              priceUsd: assetToAnalyze.priceUsd
+            }}
+            onClose={() => setAssetToAnalyze(null)} 
+          />
         )}
       </AnimatePresence>
     </motion.div>
