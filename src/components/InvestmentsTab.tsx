@@ -5,23 +5,8 @@ import { RefreshCw, TrendingUp, TrendingDown, Search, X, Pickaxe, Building2, Coi
 import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
 import AIAnalyzerModal from './AIAnalyzerModal';
 
-const MOCK_STOCKS = [
-  { id: 'thyao', symbol: 'THYAO', name: 'Türk Hava Yolları', basePrice: 310, color: '#e11d48', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=turkishairlines.com' },
-  { id: 'asels', symbol: 'ASELS', name: 'Aselsan', basePrice: 60, color: '#0284c7', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=aselsan.com.tr' },
-  { id: 'garan', symbol: 'GARAN', name: 'Garanti BBVA', basePrice: 110, color: '#16a34a', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=garantibbva.com.tr' },
-  { id: 'sasa', symbol: 'SASA', name: 'Sasa Polyester', basePrice: 45, color: '#0f766e', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=sasa.com.tr' },
-  { id: 'tuprs', symbol: 'TUPRS', name: 'Tüpraş', basePrice: 180, color: '#b91c1c', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=tupras.com.tr' },
-  { id: 'kchol', symbol: 'KCHOL', name: 'Koç Holding', basePrice: 220, color: '#1d4ed8', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=koc.com.tr' },
-  { id: 'akbnk', symbol: 'AKBNK', name: 'Akbank', basePrice: 65, color: '#dc2626', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=akbank.com' },
-  { id: 'eregl', symbol: 'EREGL', name: 'Erdemir', basePrice: 50, color: '#475569', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=erdemir.com.tr' },
-  { id: 'froto', symbol: 'FROTO', name: 'Ford Otosan', basePrice: 1150, color: '#2563eb', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=fordotosan.com.tr' },
-  { id: 'bimas', symbol: 'BIMAS', name: 'BİM Mağazalar', basePrice: 400, color: '#ea580c', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=bim.com.tr' },
-  { id: 'ttkom', symbol: 'TTKOM', name: 'Türk Telekom', basePrice: 40, color: '#0284c7', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=turktelekom.com.tr' },
-  { id: 'sahol', symbol: 'SAHOL', name: 'Sabancı Holding', basePrice: 105, color: '#1e3a8a', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=sabanci.com' },
-  { id: 'toaso', symbol: 'TOASO', name: 'Tofaş', basePrice: 320, color: '#b91c1c', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=tofas.com.tr' },
-  { id: 'ykbnk', symbol: 'YKBNK', name: 'Yapı Kredi', basePrice: 35, color: '#0369a1', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=yapikredi.com.tr' },
-  { id: 'pgsus', symbol: 'PGSUS', name: 'Pegasus', basePrice: 1050, color: '#e11d48', imageUrl: 'https://www.google.com/s2/favicons?sz=128&domain=flypgs.com' }
-];
+// BIST100 artık API'dan dinamik olarak geliyor - sabit listeye gerek yok
+const STOCK_COLORS = ['#e11d48','#0284c7','#16a34a','#0f766e','#b91c1c','#1d4ed8','#dc2626','#475569','#2563eb','#ea580c','#0369a1','#1e3a8a','#7c3aed','#059669','#d97706','#be185d','#4f46e5','#0891b2','#65a30d','#c026d3'];
 
 const MOCK_COMMODITIES = [
   { id: 'xau', symbol: 'XAU/TRY', name: 'Gram Altın', basePrice: 2450, color: '#eab308', imageUrl: 'https://img.icons8.com/color/96/gold-bars.png' },
@@ -137,12 +122,21 @@ export default function InvestmentsTab({
         const newSparklines: Record<string, { value: number }[]> = {};
         newCryptos.forEach((c: Asset) => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
 
-        // 3. Process BIST
-        const liveStocks = MOCK_STOCKS.map(ms => {
-          const bData = bist.find((b: any) => b.symbol === ms.symbol);
-          const priceTry = bData?.price || ms.basePrice;
-          newSparklines[ms.id] = generateMockSparkline(priceTry, 0.05);
-          return { ...ms, priceTry, priceUsd: priceTry / currentUsdRate, change24h: bData?.change || 0 };
+        // 3. Process BIST100 (dinamik — API'dan geliyor)
+        const liveStocks: Asset[] = bist.map((b: any, idx: number) => {
+          const id = b.symbol.toLowerCase();
+          const priceTry = b.price || 0;
+          newSparklines[id] = generateMockSparkline(priceTry, 0.05);
+          return {
+            id,
+            symbol: b.symbol,
+            name: b.name || b.symbol,
+            priceTry,
+            priceUsd: priceTry / currentUsdRate,
+            change24h: b.change || 0,
+            color: STOCK_COLORS[idx % STOCK_COLORS.length],
+            imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${b.symbol.toLowerCase()}.com.tr`
+          };
         });
         setStocks(liveStocks);
 
@@ -156,23 +150,19 @@ export default function InvestmentsTab({
         setCommodities(liveCmds);
         
         setSparklines(newSparklines);
-        console.log("✅ Tüm veriler yerel API üzerinden başarıyla çekildi.");
+        console.log(`✅ Tüm veriler çekildi: ${liveStocks.length} BIST hissesi, ${newCryptos.length} kripto, ${liveCmds.length} emtia.`);
       } else {
         throw new Error("API hatası");
       }
     } catch (err) {
       console.warn("Yerel API hatası, mock veriler kullanılacak.", err);
-      // Fallback logic remains the same...
       const mockCryptos = [
         { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', priceUsd: 80700, priceTry: 80700 * currentUsdRate, change24h: -1.8, color: '#f7931a', imageUrl: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
         { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', priceUsd: 2450, priceTry: 2450 * currentUsdRate, change24h: 1.2, color: '#627eea', imageUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
         { id: 'solana', symbol: 'SOL', name: 'Solana', priceUsd: 145, priceTry: 145 * currentUsdRate, change24h: 4.5, color: '#14f195', imageUrl: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' }
       ];
       setCryptos(mockCryptos);
-      
-      const initialStocks = MOCK_STOCKS.map(s => ({ ...s, priceTry: s.basePrice, priceUsd: s.basePrice / currentUsdRate, change24h: 0 }));
-      setStocks(initialStocks);
-      
+      setStocks([]);
       const initialCmds = MOCK_COMMODITIES.map(c => ({ ...c, priceTry: c.basePrice, priceUsd: c.basePrice / currentUsdRate, change24h: 0 }));
       setCommodities(initialCmds);
     }
@@ -352,7 +342,7 @@ export default function InvestmentsTab({
                     <Coins className="w-4 h-4" /> Kripto
                   </button>
                   <button onClick={() => setActiveCategory('stocks')} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeCategory === 'stocks' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>
-                    <Building2 className="w-4 h-4" /> BIST
+                    <Building2 className="w-4 h-4" /> BIST100
                   </button>
                   <button onClick={() => setActiveCategory('commodities')} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeCategory === 'commodities' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>
                     <Pickaxe className="w-4 h-4" /> Emtia

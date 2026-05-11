@@ -101,28 +101,57 @@ const forecastTimeSeries = (prices: number[], dates: string[], forecastDays: num
   return { historical, forecast };
 };
 
-// ==================== HABER ÇEKİCİ ====================
+// ==================== HABER ÇEKİCİ (ÇOK KAYNAKLI) ====================
 const fetchLiveNews = async (name: string, symbol: string): Promise<NewsItem[]> => {
-  try {
-    const q = encodeURIComponent(`${name} ${symbol}`);
-    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(`https://news.google.com/rss/search?q=${q}&hl=tr&gl=TR&ceid=TR:tr`)}`, { signal: AbortSignal.timeout(8000) });
-    const data = await res.json();
-    if (data.status !== "ok" || !data.items?.length) throw new Error("No items");
-    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
-    const items: NewsItem[] = data.items.slice(0, 10).map((item: any, idx: number) => {
+  const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  const allItems: NewsItem[] = [];
+  
+  // Çoklu haber kaynağı — paralel çek
+  const queries = [
+    `${name} ${symbol}`,                    // Türkçe genel
+    `${symbol} hisse borsa`,                // Borsa odaklı
+    `${symbol} stock price forecast`,       // İngilizce
+  ];
+  
+  const rssUrls = queries.map(q => 
+    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=tr&gl=TR&ceid=TR:tr`)}`
+  );
+
+  const results = await Promise.allSettled(
+    rssUrls.map(url => fetch(url, { signal: AbortSignal.timeout(8000) }).then(r => r.json()))
+  );
+
+  const seenTitles = new Set<string>();
+  
+  for (const result of results) {
+    if (result.status !== 'fulfilled' || result.value.status !== 'ok') continue;
+    for (const item of (result.value.items || []).slice(0, 8)) {
+      const cleanTitle = (item.title || "").replace(/ - [^-]+$/, "").trim();
+      if (seenTitles.has(cleanTitle)) continue;
+      seenTitles.add(cleanTitle);
+      
       const d = new Date(item.pubDate || "");
       const now = new Date();
       const mins = Math.floor((now.getTime() - d.getTime()) / 60000);
       const hrs = Math.floor(mins / 60);
       const days = Math.floor(hrs / 24);
       const time = mins < 60 ? `${Math.max(1, mins)} dk önce` : hrs < 24 ? `${hrs} saat önce` : `${days} gün önce`;
-      const cleanTitle = (item.title || "").replace(/ - [^-]+$/, "").trim();
       const srcMatch = (item.title || "").match(/ - ([^-]+)$/);
-      return { id: idx+1, title: cleanTitle, source: srcMatch?.[1]?.trim() || "Google News", time, exactDate: `${d.getDate()} ${months[d.getMonth()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`, url: item.link || "", isLive: true, publishedAt: d.getTime() };
-    });
-    items.sort((a, b) => b.publishedAt - a.publishedAt);
-    return items;
-  } catch { return []; }
+      allItems.push({
+        id: allItems.length + 1,
+        title: cleanTitle,
+        source: srcMatch?.[1]?.trim() || "Google News",
+        time,
+        exactDate: `${d.getDate()} ${months[d.getMonth()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`,
+        url: item.link || "",
+        isLive: true,
+        publishedAt: d.getTime()
+      });
+    }
+  }
+
+  allItems.sort((a, b) => b.publishedAt - a.publishedAt);
+  return allItems.slice(0, 15); // En güncel 15 haber
 };
 
 const generateMockNews = (name: string, sym: string): NewsItem[] => {
@@ -153,9 +182,9 @@ const generateMockNews = (name: string, sym: string): NewsItem[] => {
   return items.map(i => ({ ...i, ...mk(i.title, i.source) }));
 };
 
-// ==================== 3 KATMANLI ANALİZ MOTORU ====================
-const POS_KW = ['yükseliş','yükseldi','artış','arttı','rekor','pozitif','güçlü','destekliyor','iyimser','talep','alım','büyüme','kazanç','onay','patlama','toparlanma','rally','surge','bullish','gain','high','boost','profit','growth','teşvik','hızlandı','toplamaya','artıyor','hedef fiyat','bedelsiz','açık standart'];
-const NEG_KW = ['düşüş','düştü','azalış','kayıp','negatif','zayıf','baskı','endişe','risk','satış','kriz','çöküş','gerileme','crash','drop','bearish','loss','decline','fall','fear','selloff','düzeltme','sert','gerilim','oynaklık','tehdit','yasak','ceza','soruşturma','hack','iflas'];
+// ==================== 4 KATMANLI ANALİZ MOTORU (GELİŞMİŞ NLP) ====================
+const POS_KW = ['yükseliş','yükseldi','artış','arttı','rekor','pozitif','güçlü','destekliyor','iyimser','talep','alım','büyüme','kazanç','onay','patlama','toparlanma','rally','surge','bullish','gain','high','boost','profit','growth','teşvik','hızlandı','toplamaya','artıyor','hedef fiyat','bedelsiz','açık standart','kar','temettü','ihracat','verimli','dönüşüm','stratejik','ortaklık','genişleme','ralli','sıçrama','yükselen','güçleniyor','kârlılık','potansiyel','fırsat','upgrade','outperform','beat','exceed','strong','recovery','breakout','momentum','uptick','optimistic'];
+const NEG_KW = ['düşüş','düştü','azalış','kayıp','negatif','zayıf','baskı','endişe','risk','satış','kriz','çöküş','gerileme','crash','drop','bearish','loss','decline','fall','fear','selloff','düzeltme','sert','gerilim','oynaklık','tehdit','yasak','ceza','soruşturma','hack','iflas','daralma','küçülme','zarar','borç','temerrüt','resesyon','enflasyon','faiz artışı','belirsizlik','kaçış','panik','durgunluk','downgrade','underperform','miss','weak','correction','plunge','slump','concern','warning','volatile','pressure'];
 
 const analyzeNews = (items: NewsItem[]) => {
   let pos = 0, neg = 0;
@@ -238,9 +267,9 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
       setPred(predict(asset.name, asset.currentPrice, asset.change24h, finalNews, asset.sparkline || [], forecastPct));
     };
     run();
-    const t1 = setTimeout(() => setLoadingText("Geçmiş Fiyat Verileri Çekiliyor..."), 800);
-    const t2 = setTimeout(() => setLoadingText("Haber Duygu Analizi (NLP) Hesaplanıyor..."), 1800);
-    const t3 = setTimeout(() => setLoadingText("Zaman Serisi Tahmini Hesaplanıyor..."), 2800);
+    const t1 = setTimeout(() => setLoadingText("3 Farklı Kaynaktan Haberler Taranıyor..."), 800);
+    const t2 = setTimeout(() => setLoadingText("Gelişmiş NLP ile Duygu Analizi Yapılıyor..."), 1800);
+    const t3 = setTimeout(() => setLoadingText("90 Günlük Zaman Serisi Modeli Çalışıyor..."), 2800);
     const t4 = setTimeout(() => setLoadingText("4 Katmanlı Skor Birleştiriliyor..."), 3600);
     const t5 = setTimeout(() => setIsAnalyzing(false), 4200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
@@ -255,7 +284,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
           <div className="flex items-center gap-4 relative z-10">
             <div className="w-12 h-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"><Bot className="w-6 h-6" /></div>
             <div>
-              <h2 className="text-xl font-bold flex items-center gap-2">FinQuest AI Analisti <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] rounded-full uppercase tracking-wider font-bold">v2</span></h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">FinQuest AI Analisti <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] rounded-full uppercase tracking-wider font-bold">v3</span></h2>
               <p className="text-sm text-muted-foreground">{asset.name} ({asset.symbol}) · 4 Katmanlı Yapay Zeka Analizi</p>
             </div>
           </div>
