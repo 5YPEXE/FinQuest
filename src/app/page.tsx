@@ -46,34 +46,63 @@ export default function Home() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    const savedLevel = localStorage.getItem("fq_level");
-    const savedExp = localStorage.getItem("fq_exp");
-    const hasSeenOnboarding = localStorage.getItem("fq_onboarded");
-    const savedLessons = localStorage.getItem("fq_completed_lessons");
     
-    if (savedLevel) setUserLevel(parseInt(savedLevel, 10));
-    if (savedExp) setUserExp(parseInt(savedExp, 10));
-    if (!hasSeenOnboarding) setShowOnboarding(true);
-    if (savedLessons) setCompletedLessonIds(JSON.parse(savedLessons));
-
-    // Check Auth
+    // Check Auth and merge with local storage
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
       setIsAuthChecking(false);
+
+      const localLevel = localStorage.getItem("fq_level");
+      const localExp = localStorage.getItem("fq_exp");
+      const localOnboarded = localStorage.getItem("fq_onboarded");
+      const localLessons = localStorage.getItem("fq_completed_lessons");
+
+      if (activeUser) {
+        // Logged in: use Supabase metadata, fallback to local if Supabase is empty (migration)
+        const meta = activeUser.user_metadata || {};
+        const level = meta.fq_level || (localLevel ? parseInt(localLevel, 10) : 3);
+        const exp = meta.fq_exp || (localExp ? parseInt(localExp, 10) : 45);
+        const onboarded = meta.fq_onboarded || localOnboarded;
+        const lessons = meta.fq_completed_lessons || (localLessons ? JSON.parse(localLessons) : []);
+
+        setUserLevel(level);
+        setUserExp(exp);
+        if (!onboarded) setShowOnboarding(true);
+        setCompletedLessonIds(lessons);
+
+        // If data was only local, sync it up to Supabase now
+        if (!meta.fq_level && localLevel) {
+          supabase.auth.updateUser({
+            data: { fq_level: level, fq_exp: exp, fq_onboarded: onboarded, fq_completed_lessons: lessons }
+          });
+        }
+      } else {
+        // Guest mode: strictly local storage
+        if (localLevel) setUserLevel(parseInt(localLevel, 10));
+        if (localExp) setUserExp(parseInt(localExp, 10));
+        if (!localOnboarded) setShowOnboarding(true);
+        if (localLessons) setCompletedLessonIds(JSON.parse(localLessons));
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        // When auth changes (e.g. login), reload page to sync properly
+        window.location.reload();
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleQuizComplete = () => {
+  const handleQuizComplete = async () => {
     setIsLessonOpen(false);
     
+    let newCompleted = [...completedLessonIds];
     if (aiLesson) {
-      const newCompleted = [...completedLessonIds, aiLesson.id];
+      newCompleted = [...completedLessonIds, aiLesson.id];
       setCompletedLessonIds(newCompleted);
       localStorage.setItem("fq_completed_lessons", JSON.stringify(newCompleted));
     }
@@ -88,13 +117,23 @@ export default function Home() {
     }
     setUserExp(newExp);
     setUserLevel(newLevel);
+    
     localStorage.setItem("fq_level", newLevel.toString());
     localStorage.setItem("fq_exp", newExp.toString());
+
+    if (user) {
+      await supabase.auth.updateUser({
+        data: { fq_level: newLevel, fq_exp: newExp, fq_completed_lessons: newCompleted }
+      });
+    }
   };
 
-  const finishOnboarding = () => {
+  const finishOnboarding = async () => {
     setShowOnboarding(false);
     localStorage.setItem("fq_onboarded", "true");
+    if (user) {
+      await supabase.auth.updateUser({ data: { fq_onboarded: "true" } });
+    }
   };
 
   if (!isLoaded || !mounted) return <div className="flex items-center justify-center h-screen bg-background text-foreground">Yükleniyor...</div>;
@@ -106,6 +145,12 @@ export default function Home() {
     { name: 'Nakit Bakiye', value: Math.max(0, totalBalance), color: '#3b82f6' },
     { name: 'Yatırımlar', value: portfolioTotal, color: '#10b981' },
     { name: 'Hedefler/Kumbara', value: goalsTotal, color: '#f59e0b' }
+  ].filter(d => d.value > 0);
+
+  const assetDistribution = [
+    { name: 'Kripto', value: portfolio.filter(p => !p.symbol.endsWith('.IS') && !['xau','xag','xpt','xpd','cop','brent'].includes(p.coinId)).reduce((acc, p) => acc + (p.amount * p.averageBuyPrice), 0), color: '#8b5cf6' },
+    { name: 'BIST', value: portfolio.filter(p => p.symbol.endsWith('.IS')).reduce((acc, p) => acc + (p.amount * p.averageBuyPrice), 0), color: '#ec4899' },
+    { name: 'Emtia', value: portfolio.filter(p => ['xau','xag','xpt','xpd','cop','brent'].includes(p.coinId)).reduce((acc, p) => acc + (p.amount * p.averageBuyPrice), 0), color: '#f59e0b' }
   ].filter(d => d.value > 0);
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -283,6 +328,62 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground">Finansal zekan sınırları zorluyor. Yeni modüller çok yakında eklenecek.</p>
                     </div>
                   )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Widgets: Asset Distribution & AI Picks */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              
+              {/* Asset Distribution Pie Chart */}
+              <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md relative overflow-hidden transition-colors h-64">
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><PieChartIcon className="w-4 h-4 text-primary" /> Portföy Varlık Dağılımı</h3>
+                <div className="flex-1 flex items-center">
+                  <div className="w-1/2 h-full relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={assetDistribution.length > 0 ? assetDistribution : [{ name: 'Boş', value: 1, color: '#334155' }]} innerRadius={35} outerRadius={60} paddingAngle={2} dataKey="value" stroke="none">
+                          {(assetDistribution.length > 0 ? assetDistribution : [{ name: 'Boş', value: 1, color: '#334155' }]).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        {assetDistribution.length > 0 && <RechartsTooltip formatter={(value: number) => `₺${value.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`} contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />}
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="w-1/2 flex flex-col justify-center space-y-2 pl-4">
+                    {assetDistribution.length === 0 && <div className="text-sm font-bold opacity-50">Henüz yatırım yok</div>}
+                    {assetDistribution.map(d => (
+                      <div key={d.name} className="flex items-center gap-2 text-sm font-bold">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }}></div>
+                        <span className="truncate">{d.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Top 3 AI Picks */}
+              <div className="bg-card border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-colors h-64 flex flex-col">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /> AI Fırsat Radarı (Top 3)</h3>
+                <div className="space-y-3 flex-1 overflow-y-auto pr-1">
+                  {[
+                    { name: 'Bitcoin', symbol: 'BTC', trend: '+4.2%', reason: 'Zaman serisi tahmini 30 günlük süreçte güçlü alım sinyali veriyor.', type: 'Kripto' },
+                    { name: 'THY', symbol: 'THYAO.IS', trend: '+2.8%', reason: 'Teknik trend kırılımı ve RSI göstergelerinde pozitif uyumsuzluk.', type: 'BIST' },
+                    { name: 'Gümüş', symbol: 'XAG', trend: '+1.5%', reason: 'Global momentum endeksi yükseliş eğilimini destekliyor.', type: 'Emtia' }
+                  ].map((pick, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 border border-border/50">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm">{pick.name}</span>
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase">{pick.type}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">{pick.reason}</div>
+                      </div>
+                      <div className="text-emerald-500 font-bold text-sm flex-shrink-0">{pick.trend}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
