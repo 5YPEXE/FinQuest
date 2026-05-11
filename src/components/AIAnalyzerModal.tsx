@@ -17,26 +17,10 @@ type AIAnalyzerModalProps = {
   onClose: () => void;
 };
 
-// Generate a search URL for the source site, filtered by the asset name/symbol
-const getSourceSearchUrl = (source: string, assetName: string, assetSymbol: string): string => {
-  const q = encodeURIComponent(assetName);
-  const s = encodeURIComponent(assetSymbol);
-  
-  const searchUrls: Record<string, string> = {
-    "KAP": `https://www.kap.org.tr/tr/bildirim-sorgu?q=${s}`,
-    "Bloomberg HT": `https://www.bloomberght.com/ara?q=${q}`,
-    "Bloomberg": `https://www.bloomberg.com/search?query=${q}`,
-    "Reuters": `https://www.reuters.com/search/news?query=${q}`,
-    "Investing": `https://tr.investing.com/search/?q=${q}`,
-    "CoinDesk": `https://www.coindesk.com/search?s=${q}`,
-    "CoinTelegraph": `https://cointelegraph.com/search?query=${q}`,
-    "Whale Alert": `https://whale-alert.io/transaction/${s.toLowerCase()}`,
-    "Decrypt": `https://decrypt.co/search?q=${q}`,
-    "Finans Gündem": `https://www.finansgundem.com/arama?q=${q}`,
-    "Wall Street Journal": `https://www.wsj.com/search?query=${q}`,
-  };
-  
-  return searchUrls[source] || `https://www.google.com/search?q=${q}+${encodeURIComponent(source)}`;
+// Generate a Google search URL for the specific news headline
+const getNewsSearchUrl = (title: string, source: string): string => {
+  const query = encodeURIComponent(`${title} ${source}`);
+  return `https://www.google.com/search?q=${query}`;
 };
 
 // Mock News Generators based on Asset Name/Type
@@ -249,7 +233,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                   {news.map((item) => (
                     <a 
                       key={item.id} 
-                      href={getSourceSearchUrl(item.source, asset.name, asset.symbol)} 
+                      href={getNewsSearchUrl(item.title, item.source)} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="bg-secondary/30 rounded-xl p-3 text-sm flex gap-3 group hover:bg-secondary/50 transition-colors cursor-pointer block"
