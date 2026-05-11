@@ -14,7 +14,11 @@ async function fetchTradingView(market: string, body: object) {
 // Emtia: Altın/Gümüş -> cfd market, Petrol/Platin/Paladyum/Bakır -> futures market
 const COMMODITY_CFD: Record<string, string> = { 'xau': 'TVC:GOLD', 'xag': 'TVC:SILVER' };
 const COMMODITY_FUTURES: Record<string, string> = { 'brent': 'NYMEX:BZ1!', 'xpt': 'NYMEX:PL1!', 'xpd': 'NYMEX:PA1!', 'cop': 'COMEX:HG1!' };
-const CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'TRXUSDT'];
+const CRYPTO_SYMBOLS = [
+  'BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','ADAUSDT','DOGEUSDT','AVAXUSDT','DOTUSDT','TRXUSDT',
+  'LINKUSDT','MATICUSDT','SHIBUSDT','LTCUSDT','UNIUSDT','ATOMUSDT','XLMUSDT','NEARUSDT','APTUSDT','SUIUSDT',
+  'AAVEUSDT','ICPUSDT','FILUSDT','ARBUSDT','OPUSDT','INJUSDT','RENDERUSDT','FETUSDT','PEPEUSDT','WIFUSDT'
+];
 
 export const dynamic = 'force-dynamic';
 
@@ -96,14 +100,18 @@ export async function GET() {
       }
     }
 
-    // 4. Kripto (Binance)
+    // 4. Kripto (Binance — Zengin Veri)
     const crypto: any[] = [];
     if (binanceRes.status === 'fulfilled' && Array.isArray(binanceRes.value)) {
       for (const c of binanceRes.value) {
         crypto.push({
           symbol: c.symbol.replace('USDT', ''),
           price: parseFloat(c.lastPrice) || 0,
-          change: parseFloat(c.priceChangePercent) || 0
+          change: parseFloat(c.priceChangePercent) || 0,
+          high24h: parseFloat(c.highPrice) || 0,
+          low24h: parseFloat(c.lowPrice) || 0,
+          volume: parseFloat(c.quoteVolume) || 0,
+          trades: parseInt(c.count) || 0
         });
       }
     }

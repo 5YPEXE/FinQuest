@@ -44,6 +44,10 @@ type Asset = {
   change24h: number;
   color: string;
   imageUrl?: string;
+  volume?: number;
+  high24h?: number;
+  low24h?: number;
+  trades?: number;
 };
 
 export default function InvestmentsTab({
@@ -78,19 +82,39 @@ export default function InvestmentsTab({
   const fetchInitialData = async () => {
     setIsLoading(true);
     const BASE_CRYPTOS = [
-      { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', b: 'BTCUSDT', image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
-      { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', b: 'ETHUSDT', image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
-      { id: 'solana', symbol: 'SOL', name: 'Solana', b: 'SOLUSDT', image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
-      { id: 'binancecoin', symbol: 'BNB', name: 'BNB', b: 'BNBUSDT', image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
-      { id: 'ripple', symbol: 'XRP', name: 'XRP', b: 'XRPUSDT', image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
-      { id: 'cardano', symbol: 'ADA', name: 'Cardano', b: 'ADAUSDT', image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
-      { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', b: 'DOGEUSDT', image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
-      { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', b: 'AVAXUSDT', image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' },
-      { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', b: 'DOTUSDT', image: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png' },
-      { id: 'tron', symbol: 'TRX', name: 'TRON', b: 'TRXUSDT', image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' }
+      { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+      { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
+      { id: 'solana', symbol: 'SOL', name: 'Solana', image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
+      { id: 'binancecoin', symbol: 'BNB', name: 'BNB', image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
+      { id: 'ripple', symbol: 'XRP', name: 'XRP', image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
+      { id: 'cardano', symbol: 'ADA', name: 'Cardano', image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
+      { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
+      { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' },
+      { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', image: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png' },
+      { id: 'tron', symbol: 'TRX', name: 'TRON', image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' },
+      { id: 'chainlink', symbol: 'LINK', name: 'Chainlink', image: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
+      { id: 'matic-network', symbol: 'MATIC', name: 'Polygon', image: 'https://assets.coingecko.com/coins/images/4713/large/polygon.png' },
+      { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu', image: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png' },
+      { id: 'litecoin', symbol: 'LTC', name: 'Litecoin', image: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png' },
+      { id: 'uniswap', symbol: 'UNI', name: 'Uniswap', image: 'https://assets.coingecko.com/coins/images/12504/large/uni.jpg' },
+      { id: 'cosmos', symbol: 'ATOM', name: 'Cosmos', image: 'https://assets.coingecko.com/coins/images/1481/large/cosmos_hub.png' },
+      { id: 'stellar', symbol: 'XLM', name: 'Stellar', image: 'https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png' },
+      { id: 'near', symbol: 'NEAR', name: 'NEAR Protocol', image: 'https://assets.coingecko.com/coins/images/10365/large/near.jpg' },
+      { id: 'aptos', symbol: 'APT', name: 'Aptos', image: 'https://assets.coingecko.com/coins/images/26455/large/aptos_round.png' },
+      { id: 'sui', symbol: 'SUI', name: 'Sui', image: 'https://assets.coingecko.com/coins/images/26375/large/sui-ocean-square.png' },
+      { id: 'aave', symbol: 'AAVE', name: 'Aave', image: 'https://assets.coingecko.com/coins/images/12645/large/aave-token-round.png' },
+      { id: 'internet-computer', symbol: 'ICP', name: 'Internet Computer', image: 'https://assets.coingecko.com/coins/images/14495/large/Internet_Computer_logo.png' },
+      { id: 'filecoin', symbol: 'FIL', name: 'Filecoin', image: 'https://assets.coingecko.com/coins/images/12817/large/filecoin.png' },
+      { id: 'arbitrum', symbol: 'ARB', name: 'Arbitrum', image: 'https://assets.coingecko.com/coins/images/16547/large/photo_2023-03-29_21.47.00.jpeg' },
+      { id: 'optimism', symbol: 'OP', name: 'Optimism', image: 'https://assets.coingecko.com/coins/images/25244/large/Optimism.png' },
+      { id: 'injective-protocol', symbol: 'INJ', name: 'Injective', image: 'https://assets.coingecko.com/coins/images/12882/large/Secondary_Symbol.png' },
+      { id: 'render-token', symbol: 'RENDER', name: 'Render', image: 'https://assets.coingecko.com/coins/images/11636/large/rndr.png' },
+      { id: 'fetch-ai', symbol: 'FET', name: 'Fetch.ai', image: 'https://assets.coingecko.com/coins/images/5681/large/Fetch.jpg' },
+      { id: 'pepe', symbol: 'PEPE', name: 'Pepe', image: 'https://assets.coingecko.com/coins/images/29850/large/pepe-token.jpeg' },
+      { id: 'dogwifcoin', symbol: 'WIF', name: 'dogwifhat', image: 'https://assets.coingecko.com/coins/images/33566/large/dogwifhat.jpg' },
     ];
 
-    let currentUsdRate = 32.5;
+    let currentUsdRate = 38.5;
 
     try {
       const res = await fetch('/api/finance');
@@ -101,19 +125,23 @@ export default function InvestmentsTab({
         setUsdRate(usd_rate);
         currentUsdRate = usd_rate;
 
-        // 1. Process Cryptos
-        const newCryptos = BASE_CRYPTOS.map(bc => {
+        // 1. Process Cryptos (zengin Binance verisi)
+        const newCryptos: Asset[] = BASE_CRYPTOS.map(bc => {
           const cData = crypto.find((c: any) => c.symbol === bc.symbol);
           const priceUsd = cData?.price || 0;
           return {
             id: bc.id,
             symbol: bc.symbol,
             name: bc.name,
-            priceUsd: priceUsd,
+            priceUsd,
             priceTry: priceUsd * currentUsdRate,
             change24h: cData?.change || 0,
             color: getRandomColor(),
-            imageUrl: bc.image
+            imageUrl: bc.image,
+            volume: cData?.volume || 0,
+            high24h: cData?.high24h || 0,
+            low24h: cData?.low24h || 0,
+            trades: cData?.trades || 0
           };
         });
         setCryptos(newCryptos);
@@ -391,6 +419,11 @@ export default function InvestmentsTab({
                         <div className="truncate">
                           <div className="font-bold truncate">{asset.symbol}</div>
                           <div className="text-xs text-muted-foreground truncate">{asset.name}</div>
+                          {activeCategory === 'crypto' && asset.volume && asset.volume > 0 && (
+                            <div className="text-[10px] text-primary/70 font-medium">
+                              Vol: ${asset.volume >= 1e9 ? (asset.volume/1e9).toFixed(1)+'B' : asset.volume >= 1e6 ? (asset.volume/1e6).toFixed(0)+'M' : asset.volume.toLocaleString('en-US', {maximumFractionDigits: 0})}
+                            </div>
+                          )}
                         </div>
                       </div>
                       
@@ -406,12 +439,17 @@ export default function InvestmentsTab({
                         )}
                       </div>
 
-                      <div className="text-right flex flex-col items-end w-24 md:w-32">
+                      <div className="text-right flex flex-col items-end w-24 md:w-36">
                         <div className="font-bold whitespace-nowrap">{priceStr}</div>
                         <div className={`flex items-center text-xs font-bold whitespace-nowrap ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
                           {isPositive ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
                           {Math.abs(asset.change24h).toFixed(2)}%
                         </div>
+                        {activeCategory === 'crypto' && asset.high24h && asset.low24h && asset.high24h > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">
+                            H: ${currency === 'try' ? (asset.high24h * usdRate).toLocaleString('tr-TR', {maximumFractionDigits: 0}) : asset.high24h.toLocaleString('en-US', {maximumFractionDigits: 2})} · L: ${currency === 'try' ? (asset.low24h * usdRate).toLocaleString('tr-TR', {maximumFractionDigits: 0}) : asset.low24h.toLocaleString('en-US', {maximumFractionDigits: 2})}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
