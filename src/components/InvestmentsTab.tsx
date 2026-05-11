@@ -136,21 +136,75 @@ export default function InvestmentsTab({
       }));
       setCryptos(newCryptos);
 
-      // 3. Initialize Mocks with Sparklines
+      // 3. Initialize Sparklines for cryptos
       const newSparklines: Record<string, { value: number }[]> = {};
       newCryptos.forEach((c: Asset) => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
-      
-      const initialStocks = MOCK_STOCKS.map(s => {
-        newSparklines[s.id] = generateMockSparkline(s.basePrice, 0.05);
-        return { ...s, priceTry: s.basePrice, priceUsd: s.basePrice / currentUsdRate, change24h: (Math.random() * 4) - 1.5 };
-      });
-      setStocks(initialStocks);
 
-      const initialCmds = MOCK_COMMODITIES.map(c => {
-        newSparklines[c.id] = generateMockSparkline(c.basePrice, 0.03);
-        return { ...c, priceTry: c.basePrice, priceUsd: c.basePrice / currentUsdRate, change24h: (Math.random() * 2) - 0.5 };
-      });
-      setCommodities(initialCmds);
+      // 4. Fetch BIST Stocks from Yahoo Finance
+      const BIST_SYMBOLS = MOCK_STOCKS.map(s => `${s.symbol}.IS`).join(',');
+      let stocksFetched = false;
+      try {
+        const yRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${BIST_SYMBOLS}`)}`, { signal: AbortSignal.timeout(6000) });
+        const yData = await yRes.json();
+        const parsed = JSON.parse(yData.contents);
+        if (parsed.quoteResponse?.result?.length > 0) {
+          const results = parsed.quoteResponse.result;
+          const liveStocks = MOCK_STOCKS.map(ms => {
+            const yItem = results.find((r: any) => r.symbol === `${ms.symbol}.IS`);
+            const priceTry = yItem?.regularMarketPrice || ms.basePrice;
+            const change = yItem?.regularMarketChangePercent || ((Math.random() * 4) - 1.5);
+            newSparklines[ms.id] = generateMockSparkline(priceTry, 0.05);
+            return { ...ms, priceTry, priceUsd: priceTry / currentUsdRate, change24h: change };
+          });
+          setStocks(liveStocks);
+          stocksFetched = true;
+          console.log("✅ BIST verileri Yahoo Finance'den çekildi.");
+        }
+      } catch (e) { console.warn("Yahoo Finance BIST hatası, mock kullanılacak.", e); }
+
+      if (!stocksFetched) {
+        const initialStocks = MOCK_STOCKS.map(s => {
+          newSparklines[s.id] = generateMockSparkline(s.basePrice, 0.05);
+          return { ...s, priceTry: s.basePrice, priceUsd: s.basePrice / currentUsdRate, change24h: (Math.random() * 4) - 1.5 };
+        });
+        setStocks(initialStocks);
+      }
+
+      // 5. Fetch Commodities from Yahoo Finance (Gold, Silver, Platinum, Palladium, Copper, Brent)
+      const COMMODITY_YAHOO: Record<string, string> = { 'xau': 'GC=F', 'xag': 'SI=F', 'xpt': 'PL=F', 'xpd': 'PA=F', 'cop': 'HG=F', 'brent': 'BZ=F' };
+      const COMMODITY_SYMBOLS = Object.values(COMMODITY_YAHOO).join(',');
+      let cmdsFetched = false;
+      try {
+        const cRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${COMMODITY_SYMBOLS}`)}`, { signal: AbortSignal.timeout(6000) });
+        const cData = await cRes.json();
+        const cParsed = JSON.parse(cData.contents);
+        if (cParsed.quoteResponse?.result?.length > 0) {
+          const cResults = cParsed.quoteResponse.result;
+          const liveCmds = MOCK_COMMODITIES.map(mc => {
+            const yahooSym = COMMODITY_YAHOO[mc.id];
+            const cItem = cResults.find((r: any) => r.symbol === yahooSym);
+            // Yahoo returns USD for commodities, convert to TRY. Gold = oz price, Gram = oz/31.1035
+            let priceUsd = cItem?.regularMarketPrice || mc.basePrice / currentUsdRate;
+            if (mc.id === 'xau') priceUsd = priceUsd / 31.1035; // oz -> gram
+            if (mc.id === 'xag') priceUsd = priceUsd / 31.1035; // oz -> gram
+            const priceTry = priceUsd * currentUsdRate;
+            const change = cItem?.regularMarketChangePercent || ((Math.random() * 2) - 0.5);
+            newSparklines[mc.id] = generateMockSparkline(priceTry, 0.03);
+            return { ...mc, priceTry, priceUsd, change24h: change };
+          });
+          setCommodities(liveCmds);
+          cmdsFetched = true;
+          console.log("✅ Emtia verileri Yahoo Finance'den çekildi.");
+        }
+      } catch (e) { console.warn("Yahoo Finance Emtia hatası, mock kullanılacak.", e); }
+
+      if (!cmdsFetched) {
+        const initialCmds = MOCK_COMMODITIES.map(c => {
+          newSparklines[c.id] = generateMockSparkline(c.basePrice, 0.03);
+          return { ...c, priceTry: c.basePrice, priceUsd: c.basePrice / currentUsdRate, change24h: (Math.random() * 2) - 0.5 };
+        });
+        setCommodities(initialCmds);
+      }
       
       setSparklines(newSparklines);
     } catch (err) {
