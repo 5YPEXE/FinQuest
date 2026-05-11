@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Bot, Activity, TrendingUp, TrendingDown, Clock, Loader2, Newspaper, ExternalLink } from "lucide-react";
+import { X, Bot, Activity, TrendingUp, TrendingDown, Clock, Loader2, Newspaper, ExternalLink, Wifi, WifiOff } from "lucide-react";
 
 type AIAnalyzerModalProps = {
   asset: {
@@ -12,24 +12,95 @@ type AIAnalyzerModalProps = {
     currentPrice: number;
     currencySymbol: string;
     change24h: number;
-    type?: 'crypto' | 'stock' | 'commodity'; // We'll infer this if not passed
+    type?: 'crypto' | 'stock' | 'commodity';
   };
   onClose: () => void;
 };
 
-// Generate a Google search URL for the specific news headline
-const getNewsSearchUrl = (title: string, source: string): string => {
-  const query = encodeURIComponent(`${title} ${source}`);
-  return `https://www.google.com/search?q=${query}`;
+type NewsItem = {
+  id: number;
+  title: string;
+  source: string;
+  time: string;
+  url: string;
+  isLive: boolean; // true = gerçek haber, false = simülasyon
 };
 
-// Mock News Generators based on Asset Name/Type
-const generateMockNews = (assetName: string, assetSymbol: string) => {
+// ============================================================
+// GERÇEK HABER ÇEKİCİ (Google News RSS via CORS Proxy)
+// ============================================================
+const fetchLiveNews = async (assetName: string, assetSymbol: string): Promise<NewsItem[]> => {
+  try {
+    // Google News RSS - Türkçe haberler
+    const query = encodeURIComponent(`${assetName} ${assetSymbol} borsa finans`);
+    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=tr&gl=TR&ceid=TR:tr`;
+    
+    // CORS Proxy
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+    
+    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
+    const data = await res.json();
+    
+    if (!data.contents) throw new Error("No RSS content");
+    
+    // XML Parse
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(data.contents, "text/xml");
+    const items = xml.querySelectorAll("item");
+    
+    if (items.length === 0) throw new Error("No news items found");
+    
+    const newsItems: NewsItem[] = [];
+    
+    items.forEach((item, idx) => {
+      if (idx >= 8) return; // Max 8 haber
+      
+      const title = item.querySelector("title")?.textContent || "";
+      const link = item.querySelector("link")?.textContent || "";
+      const pubDate = item.querySelector("pubDate")?.textContent || "";
+      const rawSource = item.querySelector("source")?.textContent || "Google News";
+      
+      // Zaman hesaplama
+      const publishedAt = new Date(pubDate);
+      const now = new Date();
+      const diffMs = now.getTime() - publishedAt.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      let timeStr = "";
+      if (diffMins < 60) timeStr = `${diffMins} dakika önce`;
+      else if (diffHours < 24) timeStr = `${diffHours} saat önce`;
+      else timeStr = `${diffDays} gün önce`;
+      
+      newsItems.push({
+        id: idx + 1,
+        title: title.replace(/ - .*$/, "").trim(), // Kaynak adını başlıktan çıkar
+        source: rawSource,
+        time: timeStr,
+        url: link,
+        isLive: true
+      });
+    });
+    
+    return newsItems;
+  } catch (error) {
+    console.warn("Canlı haber çekilemedi, simülasyona geçiliyor:", error);
+    return []; // Boş dön, fallback devreye girsin
+  }
+};
+
+// ============================================================
+// SİMÜLASYON HABERLERİ (Fallback / Yedek)
+// ============================================================
+const generateMockNews = (assetName: string, assetSymbol: string): NewsItem[] => {
   const isCrypto = ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'TRX', 'LINK', 'DOT', 'AVAX'].includes(assetSymbol) || assetName.toLowerCase().includes('coin');
   const isBist = ['THYAO', 'ASELS', 'KCHOL', 'SASA', 'TUPRS'].includes(assetSymbol);
   
+  const makeUrl = (title: string, source: string) => `https://www.google.com/search?q=${encodeURIComponent(title + " " + source)}`;
+  
   if (isBist) {
-    return [
+    const items = [
       { id: 1, source: "KAP", time: "15 dakika önce", title: `${assetName} 3. Çeyrek Bilanço Beklentileri Revize Edildi.` },
       { id: 2, source: "Bloomberg HT", time: "2 saat önce", title: `Yabancı fonların ${assetSymbol} hissesindeki alımları hızlandı.` },
       { id: 3, source: "KAP", time: "4 saat önce", title: `${assetName} yeni yatırım teşvik belgesi aldı.` },
@@ -37,8 +108,9 @@ const generateMockNews = (assetName: string, assetSymbol: string) => {
       { id: 5, source: "Reuters", time: "12 saat önce", title: `Global ekonomik veriler ${assetName} sektöründe iyimserlik yaratıyor.` },
       { id: 6, source: "KAP", time: "1 gün önce", title: `${assetName} yönetim kurulundan bedelsiz sermaye artırımı kararı!` },
     ];
+    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false }));
   } else if (isCrypto) {
-    return [
+    const items = [
       { id: 1, source: "CoinDesk", time: "20 dakika önce", title: `SEC'in son kararı sonrası ${assetName} işlem hacminde patlama yaşandı.` },
       { id: 2, source: "Whale Alert", time: "1 saat önce", title: `Bilinmeyen bir cüzdandan borsalara devasa ${assetSymbol} transferi gerçekleşti.` },
       { id: 3, source: "CoinTelegraph", time: "3 saat önce", title: `Kurumsal balinalar yüklü miktarda ${assetName} toplamaya devam ediyor.` },
@@ -46,41 +118,38 @@ const generateMockNews = (assetName: string, assetSymbol: string) => {
       { id: 5, source: "Reuters", time: "10 saat önce", title: `Global piyasalardaki risk iştahı ${assetName} fiyatını destekliyor.` },
       { id: 6, source: "Bloomberg", time: "18 saat önce", title: `Asya merkezli fonların kripto paralara ilgisi yeniden artıyor.` },
     ];
+    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false }));
   } else {
-    // Commodities
-    return [
+    const items = [
       { id: 1, source: "Investing", time: "45 dakika önce", title: `FED'in faiz açıklamaları ${assetName} fiyatlamalarını doğrudan etkiledi.` },
       { id: 2, source: "Reuters", time: "2 saat önce", title: `Küresel arz endişeleri ${assetSymbol} piyasasında oynaklık yarattı.` },
       { id: 3, source: "Bloomberg", time: "5 saat önce", title: `Merkez bankalarının ${assetName} rezerv talebi rekor seviyelere ulaştı.` },
       { id: 4, source: "Finans Gündem", time: "9 saat önce", title: `Ortadoğu'daki jeopolitik gerilimler güvenli liman ${assetSymbol} alımlarını hızlandırdı.` },
       { id: 5, source: "Wall Street Journal", time: "14 saat önce", title: `Çin'den gelen ekonomik veriler ${assetName} piyasası için karışık sinyaller veriyor.` },
     ];
+    return items.map(i => ({ ...i, url: makeUrl(i.title, i.source), isLive: false }));
   }
 };
 
+// ============================================================
+// TAHMİN MOTORU
+// ============================================================
 const generatePrediction = (assetName: string, price: number, change24h: number) => {
-  // Simple deterministic hash based on asset name length and current date
   const today = new Date().toISOString().split('T')[0];
   const hashVal = (assetName.charCodeAt(0) + assetName.length + today.charCodeAt(today.length-1)) % 100;
   
-  // Use 24h change to influence the outcome. 
-  // If it's already pumping too much (> 5%), maybe it's overbought (bearish pullback).
-  // If it's dumping too much (< -5%), maybe it's oversold (bullish bounce).
-  let isBullish = hashVal > 40; // 60% base chance
+  let isBullish = hashVal > 40;
   
-  if (change24h > 5) isBullish = false; // Overbought correction
-  if (change24h < -5) isBullish = true; // Oversold bounce
+  if (change24h > 5) isBullish = false;
+  if (change24h < -5) isBullish = true;
 
-  let score = isBullish ? (60 + (hashVal % 35)) : (20 + (hashVal % 30));
-  
-  // Predict volatility based on change24h magnitude
+  const score = isBullish ? (60 + (hashVal % 35)) : (20 + (hashVal % 30));
   const vol = Math.max(2, Math.abs(change24h) * 1.5);
   
   const w1 = isBullish ? (vol * 0.5 + (hashVal % 3)) : -(vol * 0.4 + (hashVal % 3));
   const m1 = isBullish ? (vol * 1.5 + (hashVal % 8)) : -(vol * 1.2 + (hashVal % 5));
   const m3 = isBullish ? (vol * 3.0 + (hashVal % 15)) : -(vol * 2.5 + (hashVal % 10));
   
-  // Reason string generation
   let reason = "";
   if (change24h > 5) {
     reason = `Son 24 saatteki aşırı yükseliş (${change24h.toFixed(2)}%), RSI indikatörünü 'Aşırı Alım' (Overbought) bölgesine taşıdı. Önümüzdeki günlerde kar satışlarıyla teknik bir düzeltme yaşanma ihtimali yüksek.`;
@@ -103,27 +172,45 @@ const generatePrediction = (assetName: string, price: number, change24h: number)
   };
 };
 
+// ============================================================
+// COMPONENT
+// ============================================================
 export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [loadingText, setLoadingText] = useState("KAP ve Global Haberler Taranıyor...");
   
-  const news = generateMockNews(asset.name, asset.symbol);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [isNewsLive, setIsNewsLive] = useState(false);
   const [pred, setPred] = useState<any>(null);
 
   useEffect(() => {
     setPred(generatePrediction(asset.name, asset.currentPrice, asset.change24h));
     
-    // Simulate complex AI loading
+    // Fetch real news in parallel with loading animation
+    const fetchNews = async () => {
+      const liveNews = await fetchLiveNews(asset.name, asset.symbol);
+      
+      if (liveNews.length > 0) {
+        setNews(liveNews);
+        setIsNewsLive(true);
+      } else {
+        setNews(generateMockNews(asset.name, asset.symbol));
+        setIsNewsLive(false);
+      }
+    };
+
+    fetchNews();
+    
     const timer1 = setTimeout(() => setLoadingText("Duygu Analizi (Sentiment) Hesaplanıyor..."), 1200);
     const timer2 = setTimeout(() => setLoadingText("Teknik İndikatörler (RSI, MACD) Yorumlanıyor..."), 2400);
-    const timer3 = setTimeout(() => setIsAnalyzing(false), 3500);
+    const timer3 = setTimeout(() => setIsAnalyzing(false), 3800);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
     };
-  }, [asset.priceTry]);
+  }, [asset.currentPrice, asset.name, asset.symbol, asset.change24h]);
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-background/90 backdrop-blur-sm">
@@ -224,21 +311,31 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                 <p className="text-[10px] text-muted-foreground text-center mt-3">* Bu tahminler yapay zeka modelinin simülasyonudur ve yatırım tavsiyesi (YTD) içermez.</p>
               </div>
 
-              {/* Scraped News */}
+              {/* News Section */}
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Newspaper className="w-4 h-4" /> Taranan Son Haberler (Kaynak Verisi)
+                  <Newspaper className="w-4 h-4" /> 
+                  Taranan Son Haberler
+                  {isNewsLive ? (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] rounded-full font-bold">
+                      <Wifi className="w-3 h-3" /> CANLI
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] rounded-full font-bold">
+                      <WifiOff className="w-3 h-3" /> SİMÜLASYON
+                    </span>
+                  )}
                 </h3>
                 <div className="space-y-2">
                   {news.map((item) => (
                     <a 
                       key={item.id} 
-                      href={getNewsSearchUrl(item.title, item.source)} 
+                      href={item.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="bg-secondary/30 rounded-xl p-3 text-sm flex gap-3 group hover:bg-secondary/50 transition-colors cursor-pointer block"
                     >
-                      <div className="w-1.5 rounded-full bg-primary/50 shrink-0"></div>
+                      <div className={`w-1.5 rounded-full shrink-0 ${item.isLive ? 'bg-emerald-500' : 'bg-primary/50'}`}></div>
                       <div className="flex-1">
                         <p className="font-medium group-hover:text-primary transition-colors">{item.title}</p>
                         <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
