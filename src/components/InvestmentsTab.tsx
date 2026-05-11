@@ -105,6 +105,8 @@ export default function InvestmentsTab({
       { id: 'tron', symbol: 'TRX', name: 'TRON', b: 'TRXUSDT', image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' }
     ];
 
+    let currentUsdRate = 32.5;
+
     try {
       // 1. Fetch USD/TRY rate from Yahoo Finance (more reliable than CG)
       const rateRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTRY=X')}`);
@@ -134,15 +136,6 @@ export default function InvestmentsTab({
       });
       setCryptos(newCryptos);
       console.log("✅ Kripto verileri Binance'den çekildi.");
-    } catch (error) {
-      console.warn("Binance API hatası veya CORS. Mock veriler kullanılıyor.");
-      const mockCryptos = [
-        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', priceUsd: 80700, priceTry: 80700 * currentUsdRate, change24h: -1.8, color: '#f7931a', imageUrl: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
-        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', priceUsd: 2450, priceTry: 2450 * currentUsdRate, change24h: 1.2, color: '#627eea', imageUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
-        { id: 'solana', symbol: 'SOL', name: 'Solana', priceUsd: 145, priceTry: 145 * currentUsdRate, change24h: 4.5, color: '#14f195', imageUrl: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' }
-      ];
-      setCryptos(mockCryptos);
-    }
 
       // 3. Initialize Sparklines for cryptos
       const newSparklines: Record<string, { value: number }[]> = {};
