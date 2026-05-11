@@ -32,35 +32,21 @@ type NewsItem = {
 const fetchLiveNews = async (assetName: string, assetSymbol: string): Promise<NewsItem[]> => {
   try {
     // Google News RSS - Türkçe haberler
-    const query = encodeURIComponent(`${assetName} ${assetSymbol} borsa finans`);
+    const query = encodeURIComponent(`${assetName} ${assetSymbol}`);
     const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=tr&gl=TR&ceid=TR:tr`;
     
-    // CORS Proxy
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+    // Yöntem 1: RSS2JSON API (en güvenilir, CORS yok)
+    const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
     
-    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
+    const res = await fetch(rss2jsonUrl, { signal: AbortSignal.timeout(8000) });
     const data = await res.json();
     
-    if (!data.contents) throw new Error("No RSS content");
+    if (data.status !== "ok" || !data.items || data.items.length === 0) {
+      throw new Error("RSS2JSON returned no items");
+    }
     
-    // XML Parse
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(data.contents, "text/xml");
-    const items = xml.querySelectorAll("item");
-    
-    if (items.length === 0) throw new Error("No news items found");
-    
-    const newsItems: NewsItem[] = [];
-    
-    items.forEach((item, idx) => {
-      if (idx >= 8) return; // Max 8 haber
-      
-      const title = item.querySelector("title")?.textContent || "";
-      const link = item.querySelector("link")?.textContent || "";
-      const pubDate = item.querySelector("pubDate")?.textContent || "";
-      const rawSource = item.querySelector("source")?.textContent || "Google News";
-      
-      // Zaman hesaplama
+    const newsItems: NewsItem[] = data.items.slice(0, 8).map((item: any, idx: number) => {
+      const pubDate = item.pubDate || "";
       const publishedAt = new Date(pubDate);
       const now = new Date();
       const diffMs = now.getTime() - publishedAt.getTime();
@@ -69,24 +55,30 @@ const fetchLiveNews = async (assetName: string, assetSymbol: string): Promise<Ne
       const diffDays = Math.floor(diffMs / 86400000);
       
       let timeStr = "";
-      if (diffMins < 60) timeStr = `${diffMins} dakika önce`;
+      if (diffMins < 60) timeStr = `${Math.max(1, diffMins)} dakika önce`;
       else if (diffHours < 24) timeStr = `${diffHours} saat önce`;
       else timeStr = `${diffDays} gün önce`;
       
-      newsItems.push({
+      // Başlıktan " - KaynakAdı" kısmını çıkar
+      const cleanTitle = (item.title || "").replace(/ - [^-]+$/, "").trim();
+      // Kaynak adını ayıkla
+      const sourceMatch = (item.title || "").match(/ - ([^-]+)$/);
+      const source = sourceMatch ? sourceMatch[1].trim() : "Google News";
+      
+      return {
         id: idx + 1,
-        title: title.replace(/ - .*$/, "").trim(), // Kaynak adını başlıktan çıkar
-        source: rawSource,
+        title: cleanTitle,
+        source: source,
         time: timeStr,
-        url: link,
+        url: item.link || item.guid || "",
         isLive: true
-      });
+      };
     });
     
     return newsItems;
   } catch (error) {
     console.warn("Canlı haber çekilemedi, simülasyona geçiliyor:", error);
-    return []; // Boş dön, fallback devreye girsin
+    return [];
   }
 };
 
