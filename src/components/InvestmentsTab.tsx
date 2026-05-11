@@ -92,49 +92,57 @@ export default function InvestmentsTab({
   // Initial Data Fetch for Crypto & Base Prices
   const fetchInitialData = async () => {
     setIsLoading(true);
-    let currentUsdRate = 32.5;
-    let fetchedCryptos: any[] = [];
+    const BASE_CRYPTOS = [
+      { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', b: 'BTCUSDT', image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+      { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', b: 'ETHUSDT', image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
+      { id: 'solana', symbol: 'SOL', name: 'Solana', b: 'SOLUSDT', image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
+      { id: 'binancecoin', symbol: 'BNB', name: 'BNB', b: 'BNBUSDT', image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
+      { id: 'ripple', symbol: 'XRP', name: 'XRP', b: 'XRPUSDT', image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
+      { id: 'cardano', symbol: 'ADA', name: 'Cardano', b: 'ADAUSDT', image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
+      { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', b: 'DOGEUSDT', image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
+      { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', b: 'AVAXUSDT', image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' },
+      { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', b: 'DOTUSDT', image: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png' },
+      { id: 'tron', symbol: 'TRX', name: 'TRON', b: 'TRXUSDT', image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' }
+    ];
 
     try {
-      // 1. Fetch USD/TRY rate
-      const tetherRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=try');
-      const tetherData = await tetherRes.json();
-      currentUsdRate = tetherData.tether?.try || 32.5;
+      // 1. Fetch USD/TRY rate from Yahoo Finance (more reliable than CG)
+      const rateRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTRY=X')}`);
+      const rateData = await rateRes.json();
+      const rateParsed = JSON.parse(rateData.contents);
+      currentUsdRate = rateParsed.quoteResponse?.result?.[0]?.regularMarketPrice || 32.5;
       setUsdRate(currentUsdRate);
 
-      // 2. Fetch Top Cryptos
-      const cryptoRes = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false');
-      fetchedCryptos = await cryptoRes.json();
-    } catch (error) {
-      console.warn("API hatası (Adblocker veya Limit). Mock veriler kullanılıyor.");
-      fetchedCryptos = [
-        { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', current_price: 80700, price_change_percentage_24h: -1.8, image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
-        { id: 'ethereum', symbol: 'eth', name: 'Ethereum', current_price: 1850, price_change_percentage_24h: -2.1, image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
-        { id: 'tether', symbol: 'usdt', name: 'Tether', current_price: 1, price_change_percentage_24h: 0.01, image: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
-        { id: 'solana', symbol: 'sol', name: 'Solana', current_price: 175, price_change_percentage_24h: -0.9, image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
-        { id: 'binancecoin', symbol: 'bnb', name: 'BNB', current_price: 640, price_change_percentage_24h: 0.5, image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
-        { id: 'ripple', symbol: 'xrp', name: 'XRP', current_price: 2.35, price_change_percentage_24h: -1.2, image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
-        { id: 'cardano', symbol: 'ada', name: 'Cardano', current_price: 0.72, price_change_percentage_24h: -0.8, image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
-        { id: 'dogecoin', symbol: 'doge', name: 'Dogecoin', current_price: 0.21, price_change_percentage_24h: 3.2, image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
-        { id: 'tron', symbol: 'trx', name: 'TRON', current_price: 0.27, price_change_percentage_24h: 0.6, image: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png' },
-        { id: 'chainlink', symbol: 'link', name: 'Chainlink', current_price: 15.5, price_change_percentage_24h: 1.8, image: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
-        { id: 'polkadot', symbol: 'dot', name: 'Polkadot', current_price: 4.5, price_change_percentage_24h: -1.5, image: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png' },
-        { id: 'avalanche-2', symbol: 'avax', name: 'Avalanche', current_price: 22, price_change_percentage_24h: 2.1, image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' }
-      ];
-    }
+      // 2. Fetch Prices from Binance
+      const binanceRes = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+      const binanceData = await binanceRes.json();
 
-    try {
-      const newCryptos = fetchedCryptos.map((c: any) => ({
-        id: c.id,
-        symbol: c.symbol.toUpperCase(),
-        name: c.name,
-        priceUsd: c.current_price,
-        priceTry: c.current_price * currentUsdRate,
-        change24h: c.price_change_percentage_24h || 0,
-        color: getRandomColor(),
-        imageUrl: c.image
-      }));
+      const newCryptos = BASE_CRYPTOS.map(bc => {
+        const bItem = binanceData.find((item: any) => item.symbol === bc.b);
+        const priceUsd = parseFloat(bItem?.lastPrice || '0') || 0;
+        const change = parseFloat(bItem?.priceChangePercent || '0') || 0;
+        return {
+          id: bc.id,
+          symbol: bc.symbol,
+          name: bc.name,
+          priceUsd: priceUsd,
+          priceTry: priceUsd * currentUsdRate,
+          change24h: change,
+          color: getRandomColor(),
+          imageUrl: bc.image
+        };
+      });
       setCryptos(newCryptos);
+      console.log("✅ Kripto verileri Binance'den çekildi.");
+    } catch (error) {
+      console.warn("Binance API hatası veya CORS. Mock veriler kullanılıyor.");
+      const mockCryptos = [
+        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', priceUsd: 80700, priceTry: 80700 * currentUsdRate, change24h: -1.8, color: '#f7931a', imageUrl: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', priceUsd: 2450, priceTry: 2450 * currentUsdRate, change24h: 1.2, color: '#627eea', imageUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
+        { id: 'solana', symbol: 'SOL', name: 'Solana', priceUsd: 145, priceTry: 145 * currentUsdRate, change24h: 4.5, color: '#14f195', imageUrl: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' }
+      ];
+      setCryptos(mockCryptos);
+    }
 
       // 3. Initialize Sparklines for cryptos
       const newSparklines: Record<string, { value: number }[]> = {};
