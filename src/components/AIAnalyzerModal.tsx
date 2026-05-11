@@ -9,8 +9,8 @@ type AIAnalyzerModalProps = {
     id: string;
     name: string;
     symbol: string;
-    priceTry: number;
-    priceUsd: number;
+    currentPrice: number;
+    currencySymbol: string;
     change24h: number;
     type?: 'crypto' | 'stock' | 'commodity'; // We'll infer this if not passed
   };
@@ -105,7 +105,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
   const [pred, setPred] = useState<any>(null);
 
   useEffect(() => {
-    setPred(generatePrediction(asset.name, asset.priceTry, asset.change24h));
+    setPred(generatePrediction(asset.name, asset.currentPrice, asset.change24h));
     
     // Simulate complex AI loading
     const timer1 = setTimeout(() => setLoadingText("Duygu Analizi (Sentiment) Hesaplanıyor..."), 1200);
@@ -198,7 +198,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
               {/* Predictions */}
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Activity className="w-4 h-4" /> AI Fiyat Tahminleri (₺)
+                  <Activity className="w-4 h-4" /> AI Fiyat Tahminleri ({asset.currencySymbol})
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   {[
@@ -208,7 +208,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                   ].map((p, idx) => (
                     <div key={idx} className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
                       <span className="text-xs text-muted-foreground mb-1">{p.label}</span>
-                      <span className="font-bold text-lg">{p.price.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺</span>
+                      <span className="font-bold text-lg">{asset.currencySymbol}{p.price.toLocaleString(asset.currencySymbol === '₺' ? 'tr-TR' : 'en-US', { maximumFractionDigits: asset.currencySymbol === '₺' ? 2 : 4 })}</span>
                       <span className={`text-xs font-bold mt-1 flex items-center ${p.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {p.change >= 0 ? '+' : ''}{p.change.toFixed(2)}%
                       </span>
