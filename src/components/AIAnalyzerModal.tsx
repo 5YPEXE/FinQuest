@@ -11,6 +11,7 @@ type AIAnalyzerModalProps = {
     symbol: string;
     priceTry: number;
     priceUsd: number;
+    change24h: number;
     type?: 'crypto' | 'stock' | 'commodity'; // We'll infer this if not passed
   };
   onClose: () => void;
@@ -51,16 +52,44 @@ const generateMockNews = (assetName: string, assetSymbol: string) => {
   }
 };
 
-const generatePrediction = (price: number) => {
-  // Generate slightly positive or slightly negative predictions deterministically but pseudo-randomly
-  const isBullish = Math.random() > 0.3; // 70% chance of bullish for demo purposes
-  const w1 = isBullish ? (Math.random() * 5 + 1) : -(Math.random() * 3 + 1);
-  const m1 = isBullish ? (Math.random() * 12 + 5) : -(Math.random() * 8 + 3);
-  const m3 = isBullish ? (Math.random() * 25 + 10) : -(Math.random() * 15 + 5);
+const generatePrediction = (assetName: string, price: number, change24h: number) => {
+  // Simple deterministic hash based on asset name length and current date
+  const today = new Date().toISOString().split('T')[0];
+  const hashVal = (assetName.charCodeAt(0) + assetName.length + today.charCodeAt(today.length-1)) % 100;
   
+  // Use 24h change to influence the outcome. 
+  // If it's already pumping too much (> 5%), maybe it's overbought (bearish pullback).
+  // If it's dumping too much (< -5%), maybe it's oversold (bullish bounce).
+  let isBullish = hashVal > 40; // 60% base chance
+  
+  if (change24h > 5) isBullish = false; // Overbought correction
+  if (change24h < -5) isBullish = true; // Oversold bounce
+
+  let score = isBullish ? (60 + (hashVal % 35)) : (20 + (hashVal % 30));
+  
+  // Predict volatility based on change24h magnitude
+  const vol = Math.max(2, Math.abs(change24h) * 1.5);
+  
+  const w1 = isBullish ? (vol * 0.5 + (hashVal % 3)) : -(vol * 0.4 + (hashVal % 3));
+  const m1 = isBullish ? (vol * 1.5 + (hashVal % 8)) : -(vol * 1.2 + (hashVal % 5));
+  const m3 = isBullish ? (vol * 3.0 + (hashVal % 15)) : -(vol * 2.5 + (hashVal % 10));
+  
+  // Reason string generation
+  let reason = "";
+  if (change24h > 5) {
+    reason = `Son 24 saatteki aşırı yükseliş (${change24h.toFixed(2)}%), RSI indikatörünü 'Aşırı Alım' (Overbought) bölgesine taşıdı. Önümüzdeki günlerde kar satışlarıyla teknik bir düzeltme yaşanma ihtimali yüksek.`;
+  } else if (change24h < -5) {
+    reason = `Son dönemdeki sert düşüşler (${change24h.toFixed(2)}%) varlığı 'Aşırı Satım' (Oversold) noktasına getirdi. Temel veriler güçlü kaldığı sürece bu seviyelerden güçlü bir tepki alımı (bounce) bekleniyor.`;
+  } else if (isBullish) {
+    reason = `MACD ve hareketli ortalamalar pozitif bir ivmeye (Momentum) işaret ediyor. Haber akışındaki olumlu gelişmelerle birlikte önümüzdeki 1-3 aylık periyotta kademeli bir yükseliş trendi öngörülüyor.`;
+  } else {
+    reason = `Teknik göstergelerdeki zayıflama ve hacim düşüşü, kısa vadede aşağı yönlü bir baskı oluşturuyor. Destek seviyelerinin kırılması durumunda düşüş derinleşebilir, temkinli olunmalı.`;
+  }
+
   return {
     sentiment: isBullish ? 'Boğa (Yükseliş)' : 'Ayı (Düşüş)',
-    score: isBullish ? Math.floor(Math.random() * 30 + 70) : Math.floor(Math.random() * 40 + 20), // 70-100 or 20-60
+    score,
+    reason,
     w1, m1, m3,
     w1Price: price * (1 + (w1 / 100)),
     m1Price: price * (1 + (m1 / 100)),
@@ -76,7 +105,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
   const [pred, setPred] = useState<any>(null);
 
   useEffect(() => {
-    setPred(generatePrediction(asset.priceTry));
+    setPred(generatePrediction(asset.name, asset.priceTry, asset.change24h));
     
     // Simulate complex AI loading
     const timer1 = setTimeout(() => setLoadingText("Duygu Analizi (Sentiment) Hesaplanıyor..."), 1200);
@@ -161,7 +190,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                     <Bot className="w-4 h-4" /> AI Yorumu
                   </h3>
                   <p className="text-sm text-foreground/80 leading-relaxed">
-                    Son taranan {news.length} habere ve güncel teknik göstergelere göre, {asset.name} için pazar duyarlılığı büyük ölçüde {pred.score >= 50 ? 'pozitif' : 'negatif'} görünüyor. Kurumsal ilgi ve hacimdeki değişimler, önümüzdeki 1-3 aylık periyotta fiyatın {pred.score >= 50 ? 'yukarı' : 'aşağı'} yönlü hareket etme ihtimalini güçlendiriyor.
+                    {pred.reason}
                   </p>
                 </div>
               </div>

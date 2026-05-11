@@ -483,7 +483,8 @@ export default function InvestmentsTab({
               name: assetToAnalyze.name,
               symbol: assetToAnalyze.symbol,
               priceTry: assetToAnalyze.priceTry,
-              priceUsd: assetToAnalyze.priceUsd
+              priceUsd: assetToAnalyze.priceUsd,
+              change24h: assetToAnalyze.change24h
             }}
             onClose={() => setAssetToAnalyze(null)} 
           />
