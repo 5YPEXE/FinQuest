@@ -1,78 +1,102 @@
 import { NextResponse } from 'next/server';
 
+// TradingView Scanner API - Ücretsiz, güvenilir, sunucu tarafından çalışır
+async function fetchTradingView(tickers: string[], market: string) {
+  const res = await fetch(`https://scanner.tradingview.com/${market}/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      symbols: { tickers, query: { types: [] } },
+      columns: ['close', 'change', 'description']
+    })
+  });
+  if (!res.ok) throw new Error(`TradingView ${market} failed: ${res.status}`);
+  return res.json();
+}
+
 // Configuration
-const BIST_SYMBOLS = ['THYAO.IS', 'ASELS.IS', 'EREGL.IS', 'KCHOL.IS', 'TUPRS.IS', 'GARAN.IS', 'BIMAS.IS', 'AKBNK.IS', 'YKBNK.IS', 'SASA.IS', 'FROTO.IS', 'TTKOM.IS', 'SAHOL.IS', 'TOASO.IS', 'PGSUS.IS', 'SISE.IS'];
-const COMMODITY_YAHOO: Record<string, string> = { 'xau': 'GC=F', 'xag': 'SI=F', 'xpt': 'PL=F', 'xpd': 'PA=F', 'cop': 'HG=F', 'brent': 'BZ=F' };
+const BIST_TICKERS = [
+  'BIST:THYAO', 'BIST:ASELS', 'BIST:EREGL', 'BIST:KCHOL', 'BIST:TUPRS',
+  'BIST:GARAN', 'BIST:BIMAS', 'BIST:AKBNK', 'BIST:YKBNK', 'BIST:SASA',
+  'BIST:FROTO', 'BIST:TTKOM', 'BIST:SAHOL', 'BIST:TOASO', 'BIST:PGSUS', 'BIST:SISE'
+];
+
+// Emtia: Altın/Gümüş -> cfd market, Petrol/Platin/Paladyum/Bakır -> futures market
+const COMMODITY_CFD: Record<string, string> = { 'xau': 'TVC:GOLD', 'xag': 'TVC:SILVER' };
+const COMMODITY_FUTURES: Record<string, string> = { 'brent': 'NYMEX:BZ1!', 'xpt': 'NYMEX:PL1!', 'xpd': 'NYMEX:PA1!', 'cop': 'COMEX:HG1!' };
+
 const CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'TRXUSDT'];
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // 1. Fetch everything in parallel
-    const [rateRes, yahooRes, binanceRes] = await Promise.allSettled([
-      // USD/TRY Rate
-      fetch('https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTRY=X', { 
-        headers: { 
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-          'Referer': 'https://finance.yahoo.com/'
-        },
-        next: { revalidate: 30 } 
-      }).then(r => r.json()),
-      // BIST & Commodities combined
-      fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${BIST_SYMBOLS.join(',')},${Object.values(COMMODITY_YAHOO).join(',')}`, { 
-        headers: { 
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-          'Referer': 'https://finance.yahoo.com/'
-        },
-        next: { revalidate: 30 } 
-      }).then(r => r.json()),
-      // Crypto from Binance - ONLY FETCH NEEDED SYMBOLS TO STAY UNDER 2MB
-      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(CRYPTO_SYMBOLS)}`, { 
-        next: { revalidate: 30 } 
-      }).then(r => r.json())
+    // Tüm verileri paralel çek (5 istek aynı anda)
+    const [bistRes, fxRes, cfdRes, futuresRes, binanceRes] = await Promise.allSettled([
+      fetchTradingView(BIST_TICKERS, 'turkey'),
+      fetchTradingView(['FX_IDC:USDTRY'], 'forex'),
+      fetchTradingView(Object.values(COMMODITY_CFD), 'cfd'),
+      fetchTradingView(Object.values(COMMODITY_FUTURES), 'futures'),
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(CRYPTO_SYMBOLS)}`).then(r => r.json())
     ]);
 
-    // 2. Process USD/TRY
-    let usdRate = 32.5;
-    if (rateRes.status === 'fulfilled') {
-      usdRate = rateRes.value.quoteResponse?.result?.[0]?.regularMarketPrice || 32.5;
+    // 1. USD/TRY Kuru
+    let usdRate = 38.5;
+    if (fxRes.status === 'fulfilled' && fxRes.value?.data?.[0]) {
+      usdRate = fxRes.value.data[0].d[0] || 38.5;
     }
 
-    // 3. Process Yahoo (BIST & Commodities)
-    const yahooData = yahooRes.status === 'fulfilled' ? yahooRes.value.quoteResponse?.result : [];
-    
-    const bist = BIST_SYMBOLS.map(symbol => {
-      const item = yahooData?.find((r: any) => r.symbol === symbol);
-      return {
-        symbol: symbol.replace('.IS', ''),
-        price: item?.regularMarketPrice || 0,
-        change: item?.regularMarketChangePercent || 0
-      };
-    });
+    // 2. BIST Hisseleri
+    const bist: any[] = [];
+    if (bistRes.status === 'fulfilled' && bistRes.value?.data) {
+      for (const item of bistRes.value.data) {
+        bist.push({
+          symbol: item.s.replace('BIST:', ''),
+          price: item.d[0] || 0,
+          change: item.d[1] || 0
+        });
+      }
+    }
 
-    const commodities = Object.entries(COMMODITY_YAHOO).map(([id, symbol]) => {
-      const item = yahooData?.find((r: any) => r.symbol === symbol);
-      let price = item?.regularMarketPrice || 0;
-      if (id === 'xau' || id === 'xag') price = price / 31.1035; // oz -> gram
-      return {
-        id,
-        priceUsd: price,
-        priceTry: price * usdRate,
-        change: item?.regularMarketChangePercent || 0
-      };
-    });
+    // 3. Emtialar (CFD + Futures birleştir)
+    const commodities: any[] = [];
+    const cfdTickerToId = Object.fromEntries(Object.entries(COMMODITY_CFD).map(([k, v]) => [v, k]));
+    const futuresTickerToId = Object.fromEntries(Object.entries(COMMODITY_FUTURES).map(([k, v]) => [v, k]));
 
-    // 4. Process Binance (Crypto)
-    const binanceData = binanceRes.status === 'fulfilled' ? binanceRes.value : [];
-    const crypto = CRYPTO_SYMBOLS.map(symbol => {
-      const item = binanceData?.find((r: any) => r.symbol === symbol);
-      return {
-        symbol: symbol.replace('USDT', ''),
-        price: parseFloat(item?.lastPrice || '0'),
-        change: parseFloat(item?.priceChangePercent || '0')
-      };
-    });
+    if (cfdRes.status === 'fulfilled' && cfdRes.value?.data) {
+      for (const item of cfdRes.value.data) {
+        const id = cfdTickerToId[item.s];
+        if (!id) continue;
+        let priceUsd = item.d[0] || 0;
+        // Ons -> Gram dönüşümü (Altın ve Gümüş ons fiyatı olarak gelir)
+        if (id === 'xau' || id === 'xag') priceUsd = priceUsd / 31.1035;
+        commodities.push({ id, priceUsd, priceTry: priceUsd * usdRate, change: item.d[1] || 0 });
+      }
+    }
+
+    if (futuresRes.status === 'fulfilled' && futuresRes.value?.data) {
+      for (const item of futuresRes.value.data) {
+        const id = futuresTickerToId[item.s];
+        if (!id) continue;
+        let priceUsd = item.d[0] || 0;
+        if (id === 'xpt' || id === 'xpd') priceUsd = priceUsd / 31.1035; // Ons -> Gram
+        // Bakır: lb başına fiyat gelir, kg'ye çevir (1 lb = 0.453592 kg)
+        if (id === 'cop') priceUsd = priceUsd / 0.453592;
+        commodities.push({ id, priceUsd, priceTry: priceUsd * usdRate, change: item.d[1] || 0 });
+      }
+    }
+
+    // 4. Kripto (Binance)
+    const crypto: any[] = [];
+    if (binanceRes.status === 'fulfilled' && Array.isArray(binanceRes.value)) {
+      for (const c of binanceRes.value) {
+        crypto.push({
+          symbol: c.symbol.replace('USDT', ''),
+          price: parseFloat(c.lastPrice) || 0,
+          change: parseFloat(c.priceChangePercent) || 0
+        });
+      }
+    }
 
     return NextResponse.json({
       status: 'success',
@@ -80,11 +104,18 @@ export async function GET() {
       bist,
       commodities,
       crypto,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sources: {
+        bist: bistRes.status === 'fulfilled' ? 'TradingView' : 'failed',
+        fx: fxRes.status === 'fulfilled' ? 'TradingView' : 'failed',
+        commodities_cfd: cfdRes.status === 'fulfilled' ? 'TradingView' : 'failed',
+        commodities_futures: futuresRes.status === 'fulfilled' ? 'TradingView' : 'failed',
+        crypto: binanceRes.status === 'fulfilled' ? 'Binance' : 'failed'
+      }
     });
 
   } catch (error) {
     console.error('API Route Error:', error);
-    return NextResponse.json({ status: 'error', message: 'Failed to fetch data' }, { status: 500 });
+    return NextResponse.json({ status: 'error', message: String(error) }, { status: 500 });
   }
 }
