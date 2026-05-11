@@ -2,11 +2,70 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, Bot, Activity, TrendingUp, TrendingDown, Clock, Newspaper, ExternalLink, Wifi, WifiOff, BarChart3 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 type NewsItem = { id: number; title: string; source: string; time: string; exactDate: string; url: string; isLive: boolean; publishedAt: number };
+type ChartPoint = { date: string; price?: number; forecast?: number };
 type AIAnalyzerModalProps = {
   asset: { id: string; name: string; symbol: string; currentPrice: number; currencySymbol: string; change24h: number; sparkline?: { value: number }[]; };
   onClose: () => void;
+};
+
+// ==================== ZAMAN SERİSİ ANALİZİ ====================
+const fetchHistoricalPrices = async (assetId: string): Promise<{ prices: number[]; dates: string[] }> => {
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/coins/${assetId}/market_chart?vs_currency=usd&days=90&interval=daily`, { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
+    if (!data.prices?.length) throw new Error("No price data");
+    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+    const prices = data.prices.map((p: number[]) => p[1]);
+    const dates = data.prices.map((p: number[]) => { const d = new Date(p[0]); return `${d.getDate()} ${months[d.getMonth()]}`; });
+    return { prices, dates };
+  } catch { return { prices: [], dates: [] }; }
+};
+
+const forecastTimeSeries = (prices: number[], dates: string[], forecastDays: number = 30): { historical: ChartPoint[]; forecast: ChartPoint[]; } => {
+  if (prices.length < 10) return { historical: [], forecast: [] };
+  const n = prices.length;
+  // Linear Regression: y = mx + b
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (let i = 0; i < n; i++) { sumX += i; sumY += prices[i]; sumXY += i * prices[i]; sumXX += i * i; }
+  const m = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const b = (sumY - m * sumX) / n;
+  // EMA (son 14 gün)
+  const emaPeriod = Math.min(14, n);
+  const k = 2 / (emaPeriod + 1);
+  let ema = prices.slice(n - emaPeriod).reduce((a, b) => a + b, 0) / emaPeriod;
+  for (let i = n - emaPeriod; i < n; i++) ema = prices[i] * k + ema * (1 - k);
+  // Volatilite (standart sapma son 30 gün)
+  const recent = prices.slice(-30);
+  const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const std = Math.sqrt(recent.reduce((s, p) => s + (p - avg) ** 2, 0) / recent.length);
+  const volRatio = std / avg; // Relative volatility
+  // Historical chart points
+  const historical: ChartPoint[] = dates.map((d, i) => ({ date: d, price: prices[i] }));
+  // Forecast: blend linear regression + EMA momentum
+  const forecast: ChartPoint[] = [];
+  const lastPrice = prices[n - 1];
+  const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  // Bridge point: connect historical to forecast
+  const today = new Date();
+  forecast.push({ date: dates[dates.length - 1], price: lastPrice, forecast: lastPrice });
+  for (let i = 1; i <= forecastDays; i++) {
+    const linReg = m * (n + i) + b; // Linear regression projection
+    const emaTrend = ema + (ema - prices[n - emaPeriod]) * (i / forecastDays); // EMA momentum
+    // Blend: 60% linear regression, 40% EMA trend
+    let predicted = linReg * 0.6 + emaTrend * 0.4;
+    // Add realistic noise based on volatility
+    const noise = (Math.sin(i * 2.7 + n) * 0.5 + Math.cos(i * 1.3) * 0.3) * volRatio * lastPrice * 0.3;
+    predicted += noise;
+    // Clamp to reasonable range (±40% of last price)
+    predicted = Math.max(lastPrice * 0.6, Math.min(lastPrice * 1.4, predicted));
+    const futureDate = new Date(today);
+    futureDate.setDate(today.getDate() + i);
+    forecast.push({ date: `${futureDate.getDate()} ${months[futureDate.getMonth()]}`, forecast: predicted });
+  }
+  return { historical, forecast };
 };
 
 // ==================== HABER ÇEKİCİ ====================
@@ -113,22 +172,35 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isNewsLive, setIsNewsLive] = useState(false);
   const [pred, setPred] = useState<Pred | null>(null);
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [forecastStart, setForecastStart] = useState("");
 
   useEffect(() => {
     const run = async () => {
-      const live = await fetchLiveNews(asset.name, asset.symbol);
+      // Parallel: haberler + geçmiş fiyatlar
+      const [live, hist] = await Promise.all([
+        fetchLiveNews(asset.name, asset.symbol),
+        fetchHistoricalPrices(asset.id)
+      ]);
       let finalNews: NewsItem[];
       if (live.length > 0) { finalNews = live; setIsNewsLive(true); }
       else { finalNews = generateMockNews(asset.name, asset.symbol); setIsNewsLive(false); }
       setNews(finalNews);
       setPred(predict(asset.name, asset.currentPrice, asset.change24h, finalNews, asset.sparkline || []));
+      // Time series forecast
+      if (hist.prices.length > 10) {
+        const { historical, forecast } = forecastTimeSeries(hist.prices, hist.dates, 30);
+        setForecastStart(historical[historical.length - 1]?.date || "");
+        setChartData([...historical, ...forecast]);
+      }
     };
     run();
-    const t1 = setTimeout(() => setLoadingText("Haber Duygu Analizi (NLP) Hesaplanıyor..."), 1000);
-    const t2 = setTimeout(() => setLoadingText("Teknik İndikatörler (SMA, RSI) Yorumlanıyor..."), 2200);
-    const t3 = setTimeout(() => setLoadingText("3 Katmanlı Skor Birleştiriliyor..."), 3200);
-    const t4 = setTimeout(() => setIsAnalyzing(false), 4000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+    const t1 = setTimeout(() => setLoadingText("Geçmiş Fiyat Verileri Çekiliyor..."), 800);
+    const t2 = setTimeout(() => setLoadingText("Haber Duygu Analizi (NLP) Hesaplanıyor..."), 1800);
+    const t3 = setTimeout(() => setLoadingText("Zaman Serisi Tahmini Hesaplanıyor..."), 2800);
+    const t4 = setTimeout(() => setLoadingText("3 Katmanlı Skor Birleştiriliyor..."), 3600);
+    const t5 = setTimeout(() => setIsAnalyzing(false), 4200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
   }, [asset.currentPrice, asset.name, asset.symbol, asset.change24h]);
 
   return (
@@ -205,6 +277,42 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                   ))}
                 </div>
               </div>
+
+              {/* Time Series Forecast Chart */}
+              {chartData.length > 0 && (
+                <div className="bg-secondary/20 border border-border rounded-2xl p-5">
+                  <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
+                    <Activity className="w-4 h-4" /> Zaman Serisi Tahmini (90 Gün Geçmiş + 30 Gün Tahmin)
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground mb-4">Linear Regression + EMA blending · USD bazlı</p>
+                  <div className="h-52">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                        <defs>
+                          <linearGradient id="gradHistory" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="gradForecast" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={14} stroke="#64748b" />
+                        <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} stroke="#64748b" tickFormatter={(v: number) => `$${v >= 1000 ? (v/1000).toFixed(1)+'K' : v.toFixed(0)}`} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', fontSize: '12px' }} formatter={(value: number) => [`$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`, '']} labelStyle={{ color: '#94a3b8' }} />
+                        {forecastStart && <ReferenceLine x={forecastStart} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "Bugün", fill: "#f59e0b", fontSize: 10, position: "top" }} />}
+                        <Area type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} fill="url(#gradHistory)" dot={false} name="Geçmiş" connectNulls={false} />
+                        <Area type="monotone" dataKey="forecast" stroke="#6366f1" strokeWidth={2} strokeDasharray="6 3" fill="url(#gradForecast)" dot={false} name="Tahmin" connectNulls={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex items-center justify-center gap-6 mt-2 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-emerald-500 inline-block rounded"></span> Geçmiş Fiyat (90 gün)</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-indigo-500 inline-block rounded" style={{ borderBottom: '1px dashed' }}></span> AI Tahmin (30 gün)</span>
+                  </div>
+                </div>
+              )}
 
               {/* Predictions */}
               <div>
