@@ -146,13 +146,17 @@ const analyzeMomentum = (c: number) => ({
   rsi: c > 7 ? 'Aşırı Alım' : c > 3 ? 'Güçlü Alım' : c < -7 ? 'Aşırı Satım' : c < -3 ? 'Güçlü Satım' : 'Nötr'
 });
 
-type Pred = { sentiment: string; score: number; reason: string; details: { newsScore: number; trendScore: number; momScore: number; rsi: string; trendDir: string; posNews: number; negNews: number; neutralNews: number }; w1: number; m1: number; m3: number; w1P: number; m1P: number; m3P: number };
+type Pred = { sentiment: string; score: number; reason: string; details: { newsScore: number; trendScore: number; momScore: number; forecastScore: number; rsi: string; trendDir: string; posNews: number; negNews: number; neutralNews: number; forecastDir: string }; w1: number; m1: number; m3: number; w1P: number; m1P: number; m3P: number };
 
-const predict = (name: string, price: number, change24h: number, newsItems: NewsItem[], sparkline: { value: number }[]): Pred => {
+const predict = (name: string, price: number, change24h: number, newsItems: NewsItem[], sparkline: { value: number }[], forecastPct: number = 0): Pred => {
   const ns = analyzeNews(newsItems);
   const tr = analyzeTrend(sparkline);
   const mo = analyzeMomentum(change24h);
-  const weighted = ns.score * 0.35 + tr.score * 0.35 + mo.score * 0.30;
+  // 4. Katman: Zaman serisi tahmin yönü
+  const forecastScore = Math.max(-100, Math.min(100, forecastPct * 8));
+  const forecastDir = forecastPct > 1 ? 'Yükseliş' : forecastPct < -1 ? 'Düşüş' : 'Yatay';
+  // Ağırlıklar: Haberler %20, Sparkline Trend %20, Momentum %20, Zaman Serisi %40
+  const weighted = ns.score * 0.20 + tr.score * 0.20 + mo.score * 0.20 + forecastScore * 0.40;
   const finalScore = Math.max(0, Math.min(100, Math.round(50 + weighted / 2)));
   const bull = finalScore >= 50;
   const vol = Math.max(2, Math.abs(change24h) * 1.2 + Math.abs(weighted) * 0.05);
@@ -160,9 +164,9 @@ const predict = (name: string, price: number, change24h: number, newsItems: News
   const m1 = bull ? (vol * 1.2 + (finalScore - 50) * 0.15) : -(vol * 1.0 + (50 - finalScore) * 0.12);
   const m3 = bull ? (vol * 2.5 + (finalScore - 50) * 0.3) : -(vol * 2.0 + (50 - finalScore) * 0.25);
   const nv = ns.pos > ns.neg ? `olumlu (${ns.pos} pozitif / ${ns.neg} negatif)` : ns.neg > ns.pos ? `olumsuz (${ns.neg} negatif / ${ns.pos} pozitif)` : `nötr (dengeli)`;
-  let reason = `📊 Taranan ${newsItems.length} haberin duygu analizi: ${nv}. 📈 Teknik trend: ${tr.dir} eğilimli. ⚡ RSI bölgesi: ${mo.rsi} (24s: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%). `;
-  reason += bull ? `Üç katmanlı analiz birleştirildiğinde, ${name} için kısa-orta vadede yükseliş potansiyeli öne çıkıyor.` : `Üç katmanlı analiz birleştirildiğinde, ${name} için kısa vadede temkinli olunması gerektiği sinyali güçleniyor.`;
-  return { sentiment: bull ? 'Boğa (Yükseliş)' : 'Ayı (Düşüş)', score: finalScore, reason, details: { newsScore: Math.round(ns.score), trendScore: Math.round(tr.score), momScore: Math.round(mo.score), rsi: mo.rsi, trendDir: tr.dir, posNews: ns.pos, negNews: ns.neg, neutralNews: ns.neutral }, w1, m1, m3, w1P: price * (1 + w1/100), m1P: price * (1 + m1/100), m3P: price * (1 + m3/100) };
+  let reason = `📊 Taranan ${newsItems.length} haberin duygu analizi: ${nv}. 📈 Teknik trend: ${tr.dir} eğilimli. ⚡ RSI bölgesi: ${mo.rsi} (24s: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%). 🔮 Zaman serisi tahmini: ${forecastDir} (${forecastPct >= 0 ? '+' : ''}${forecastPct.toFixed(1)}%). `;
+  reason += bull ? `Dört katmanlı analiz birleştirildiğinde, ${name} için kısa-orta vadede yükseliş potansiyeli öne çıkıyor.` : `Dört katmanlı analiz birleştirildiğinde, ${name} için kısa vadede temkinli olunması gerektiği sinyali güçleniyor.`;
+  return { sentiment: bull ? 'Boğa (Yükseliş)' : 'Ayı (Düşüş)', score: finalScore, reason, details: { newsScore: Math.round(ns.score), trendScore: Math.round(tr.score), momScore: Math.round(mo.score), forecastScore: Math.round(forecastScore), rsi: mo.rsi, trendDir: tr.dir, posNews: ns.pos, negNews: ns.neg, neutralNews: ns.neutral, forecastDir }, w1, m1, m3, w1P: price * (1 + w1/100), m1P: price * (1 + m1/100), m3P: price * (1 + m3/100) };
 };
 
 // ==================== COMPONENT ====================
@@ -186,19 +190,25 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
       if (live.length > 0) { finalNews = live; setIsNewsLive(true); }
       else { finalNews = generateMockNews(asset.name, asset.symbol); setIsNewsLive(false); }
       setNews(finalNews);
-      setPred(predict(asset.name, asset.currentPrice, asset.change24h, finalNews, asset.sparkline || []));
       // Time series forecast
+      let forecastPct = 0;
       if (hist.prices.length > 10) {
         const { historical, forecast } = forecastTimeSeries(hist.prices, hist.dates, 30);
         setForecastStart(historical[historical.length - 1]?.date || "");
         setChartData([...historical, ...forecast]);
+        // Tahmin yönünü hesapla: son gerçek fiyat vs 30 gün sonrası
+        const lastReal = hist.prices[hist.prices.length - 1];
+        const last30 = forecast[forecast.length - 1]?.forecast || lastReal;
+        forecastPct = ((last30 - lastReal) / lastReal) * 100;
       }
+      // TÜM katmanlarla birlikte tahmin
+      setPred(predict(asset.name, asset.currentPrice, asset.change24h, finalNews, asset.sparkline || [], forecastPct));
     };
     run();
     const t1 = setTimeout(() => setLoadingText("Geçmiş Fiyat Verileri Çekiliyor..."), 800);
     const t2 = setTimeout(() => setLoadingText("Haber Duygu Analizi (NLP) Hesaplanıyor..."), 1800);
     const t3 = setTimeout(() => setLoadingText("Zaman Serisi Tahmini Hesaplanıyor..."), 2800);
-    const t4 = setTimeout(() => setLoadingText("3 Katmanlı Skor Birleştiriliyor..."), 3600);
+    const t4 = setTimeout(() => setLoadingText("4 Katmanlı Skor Birleştiriliyor..."), 3600);
     const t5 = setTimeout(() => setIsAnalyzing(false), 4200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
   }, [asset.currentPrice, asset.name, asset.symbol, asset.change24h]);
@@ -213,7 +223,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
             <div className="w-12 h-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"><Bot className="w-6 h-6" /></div>
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2">FinQuest AI Analisti <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] rounded-full uppercase tracking-wider font-bold">v2</span></h2>
-              <p className="text-sm text-muted-foreground">{asset.name} ({asset.symbol}) · 3 Katmanlı Yapay Zeka Analizi</p>
+              <p className="text-sm text-muted-foreground">{asset.name} ({asset.symbol}) · 4 Katmanlı Yapay Zeka Analizi</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-secondary transition-colors relative z-10"><X className="w-5 h-5 text-muted-foreground" /></button>
@@ -256,12 +266,13 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
 
               {/* 3-Layer Detail Bars */}
               <div className="bg-secondary/20 border border-border rounded-2xl p-5">
-                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Katman Detayları</h3>
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Katman Detayları (4 Katmanlı Analiz)</h3>
                 <div className="space-y-3">
                   {[
-                    { label: '📰 Haber Duygusu', val: pred.details.newsScore, desc: `${pred.details.posNews} pozitif · ${pred.details.negNews} negatif · ${pred.details.neutralNews} nötr` },
-                    { label: '📈 Teknik Trend', val: pred.details.trendScore, desc: `Yön: ${pred.details.trendDir}` },
-                    { label: '⚡ Momentum (RSI)', val: pred.details.momScore, desc: `Bölge: ${pred.details.rsi}` },
+                    { label: '📰 Haber Duygusu (%20)', val: pred.details.newsScore, desc: `${pred.details.posNews} pozitif · ${pred.details.negNews} negatif · ${pred.details.neutralNews} nötr` },
+                    { label: '📈 Teknik Trend (%20)', val: pred.details.trendScore, desc: `Yön: ${pred.details.trendDir}` },
+                    { label: '⚡ Momentum/RSI (%20)', val: pred.details.momScore, desc: `Bölge: ${pred.details.rsi}` },
+                    { label: '🔮 Zaman Serisi (%40)', val: pred.details.forecastScore, desc: `Yön: ${pred.details.forecastDir}` },
                   ].map((layer, idx) => (
                     <div key={idx}>
                       <div className="flex justify-between text-xs mb-1">
