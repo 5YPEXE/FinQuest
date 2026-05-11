@@ -4,10 +4,18 @@ import { NextResponse } from 'next/server';
 async function fetchTradingView(market: string, body: object) {
   const res = await fetch(`https://scanner.tradingview.com/${market}/scan`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    headers: { 
+      'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000) // 8 saniye timeout
   });
-  if (!res.ok) throw new Error(`TradingView ${market} failed: ${res.status}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error(`TradingView ${market} error: ${res.status} - ${text.slice(0, 200)}`);
+    throw new Error(`TradingView ${market} failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -122,7 +130,14 @@ export async function GET() {
       bist,
       commodities,
       crypto,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      _debug: {
+        bist: bistRes.status === 'fulfilled' ? `ok (${bist.length} hisse)` : `FAIL: ${(bistRes as any).reason}`,
+        fx: fxRes.status === 'fulfilled' ? `ok (${usdRate})` : `FAIL: ${(fxRes as any).reason}`,
+        cfd: cfdRes.status === 'fulfilled' ? 'ok' : `FAIL: ${(cfdRes as any).reason}`,
+        futures: futuresRes.status === 'fulfilled' ? 'ok' : `FAIL: ${(futuresRes as any).reason}`,
+        crypto: binanceRes.status === 'fulfilled' ? `ok (${crypto.length} coin)` : `FAIL: ${(binanceRes as any).reason}`
+      }
     });
 
   } catch (error) {

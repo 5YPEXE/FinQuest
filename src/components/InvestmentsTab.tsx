@@ -179,6 +179,7 @@ export default function InvestmentsTab({
         
         setSparklines(newSparklines);
         console.log(`✅ Tüm veriler çekildi: ${liveStocks.length} BIST hissesi, ${newCryptos.length} kripto, ${liveCmds.length} emtia.`);
+        if (data._debug) console.log('📊 API Debug:', data._debug);
       } else {
         throw new Error("API hatası");
       }
