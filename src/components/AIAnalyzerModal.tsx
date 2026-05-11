@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Bot, Activity, TrendingUp, TrendingDown, Clock, Loader2, Newspaper } from "lucide-react";
+import { X, Bot, Activity, TrendingUp, TrendingDown, Clock, Loader2, Newspaper, ExternalLink } from "lucide-react";
 
 type AIAnalyzerModalProps = {
   asset: {
@@ -17,6 +17,21 @@ type AIAnalyzerModalProps = {
   onClose: () => void;
 };
 
+// Source URL mapping
+const SOURCE_URLS: Record<string, string> = {
+  "KAP": "https://www.kap.org.tr",
+  "Bloomberg HT": "https://www.bloomberght.com",
+  "Bloomberg": "https://www.bloomberg.com",
+  "Reuters": "https://www.reuters.com",
+  "Investing": "https://tr.investing.com",
+  "CoinDesk": "https://www.coindesk.com",
+  "CoinTelegraph": "https://cointelegraph.com",
+  "Whale Alert": "https://whale-alert.io",
+  "Decrypt": "https://decrypt.co",
+  "Finans Gündem": "https://www.finansgundem.com",
+  "Wall Street Journal": "https://www.wsj.com",
+};
+
 // Mock News Generators based on Asset Name/Type
 const generateMockNews = (assetName: string, assetSymbol: string) => {
   const isCrypto = ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'TRX', 'LINK', 'DOT', 'AVAX'].includes(assetSymbol) || assetName.toLowerCase().includes('coin');
@@ -24,30 +39,30 @@ const generateMockNews = (assetName: string, assetSymbol: string) => {
   
   if (isBist) {
     return [
-      { id: 1, source: "KAP", time: "15 dakika önce", title: `${assetName} 3. Çeyrek Bilanço Beklentileri Revize Edildi.` },
-      { id: 2, source: "Bloomberg HT", time: "2 saat önce", title: `Yabancı fonların ${assetSymbol} hissesindeki alımları hızlandı.` },
-      { id: 3, source: "KAP", time: "4 saat önce", title: `${assetName} yeni yatırım teşvik belgesi aldı.` },
-      { id: 4, source: "Investing", time: "7 saat önce", title: `Aracı kurumlar ${assetSymbol} için hedef fiyatı yukarı yönlü güncelledi.` },
-      { id: 5, source: "Reuters", time: "12 saat önce", title: `Global ekonomik veriler ${assetName} sektöründe iyimserlik yaratıyor.` },
-      { id: 6, source: "KAP", time: "1 gün önce", title: `${assetName} yönetim kurulundan bedelsiz sermaye artırımı kararı!` },
+      { id: 1, source: "KAP", url: SOURCE_URLS["KAP"], time: "15 dakika önce", title: `${assetName} 3. Çeyrek Bilanço Beklentileri Revize Edildi.` },
+      { id: 2, source: "Bloomberg HT", url: SOURCE_URLS["Bloomberg HT"], time: "2 saat önce", title: `Yabancı fonların ${assetSymbol} hissesindeki alımları hızlandı.` },
+      { id: 3, source: "KAP", url: SOURCE_URLS["KAP"], time: "4 saat önce", title: `${assetName} yeni yatırım teşvik belgesi aldı.` },
+      { id: 4, source: "Investing", url: SOURCE_URLS["Investing"], time: "7 saat önce", title: `Aracı kurumlar ${assetSymbol} için hedef fiyatı yukarı yönlü güncelledi.` },
+      { id: 5, source: "Reuters", url: SOURCE_URLS["Reuters"], time: "12 saat önce", title: `Global ekonomik veriler ${assetName} sektöründe iyimserlik yaratıyor.` },
+      { id: 6, source: "KAP", url: SOURCE_URLS["KAP"], time: "1 gün önce", title: `${assetName} yönetim kurulundan bedelsiz sermaye artırımı kararı!` },
     ];
   } else if (isCrypto) {
     return [
-      { id: 1, source: "CoinDesk", time: "20 dakika önce", title: `SEC'in son kararı sonrası ${assetName} işlem hacminde patlama yaşandı.` },
-      { id: 2, source: "Whale Alert", time: "1 saat önce", title: `Bilinmeyen bir cüzdandan borsalara devasa ${assetSymbol} transferi gerçekleşti.` },
-      { id: 3, source: "CoinTelegraph", time: "3 saat önce", title: `Kurumsal balinalar yüklü miktarda ${assetName} toplamaya devam ediyor.` },
-      { id: 4, source: "Decrypt", time: "5 saat önce", title: `${assetSymbol} ağındaki aktif adres sayısı tüm zamanların en yüksek seviyesinde.` },
-      { id: 5, source: "Reuters", time: "10 saat önce", title: `Global piyasalardaki risk iştahı ${assetName} fiyatını destekliyor.` },
-      { id: 6, source: "Bloomberg", time: "18 saat önce", title: `Asya merkezli fonların kripto paralara ilgisi yeniden artıyor.` },
+      { id: 1, source: "CoinDesk", url: SOURCE_URLS["CoinDesk"], time: "20 dakika önce", title: `SEC'in son kararı sonrası ${assetName} işlem hacminde patlama yaşandı.` },
+      { id: 2, source: "Whale Alert", url: SOURCE_URLS["Whale Alert"], time: "1 saat önce", title: `Bilinmeyen bir cüzdandan borsalara devasa ${assetSymbol} transferi gerçekleşti.` },
+      { id: 3, source: "CoinTelegraph", url: SOURCE_URLS["CoinTelegraph"], time: "3 saat önce", title: `Kurumsal balinalar yüklü miktarda ${assetName} toplamaya devam ediyor.` },
+      { id: 4, source: "Decrypt", url: SOURCE_URLS["Decrypt"], time: "5 saat önce", title: `${assetSymbol} ağındaki aktif adres sayısı tüm zamanların en yüksek seviyesinde.` },
+      { id: 5, source: "Reuters", url: SOURCE_URLS["Reuters"], time: "10 saat önce", title: `Global piyasalardaki risk iştahı ${assetName} fiyatını destekliyor.` },
+      { id: 6, source: "Bloomberg", url: SOURCE_URLS["Bloomberg"], time: "18 saat önce", title: `Asya merkezli fonların kripto paralara ilgisi yeniden artıyor.` },
     ];
   } else {
     // Commodities
     return [
-      { id: 1, source: "Investing", time: "45 dakika önce", title: `FED'in faiz açıklamaları ${assetName} fiyatlamalarını doğrudan etkiledi.` },
-      { id: 2, source: "Reuters", time: "2 saat önce", title: `Küresel arz endişeleri ${assetSymbol} piyasasında oynaklık yarattı.` },
-      { id: 3, source: "Bloomberg", time: "5 saat önce", title: `Merkez bankalarının ${assetName} rezerv talebi rekor seviyelere ulaştı.` },
-      { id: 4, source: "Finans Gündem", time: "9 saat önce", title: `Ortadoğu'daki jeopolitik gerilimler güvenli liman ${assetSymbol} alımlarını hızlandırdı.` },
-      { id: 5, source: "Wall Street Journal", time: "14 saat önce", title: `Çin'den gelen ekonomik veriler ${assetName} piyasası için karışık sinyaller veriyor.` },
+      { id: 1, source: "Investing", url: SOURCE_URLS["Investing"], time: "45 dakika önce", title: `FED'in faiz açıklamaları ${assetName} fiyatlamalarını doğrudan etkiledi.` },
+      { id: 2, source: "Reuters", url: SOURCE_URLS["Reuters"], time: "2 saat önce", title: `Küresel arz endişeleri ${assetSymbol} piyasasında oynaklık yarattı.` },
+      { id: 3, source: "Bloomberg", url: SOURCE_URLS["Bloomberg"], time: "5 saat önce", title: `Merkez bankalarının ${assetName} rezerv talebi rekor seviyelere ulaştı.` },
+      { id: 4, source: "Finans Gündem", url: SOURCE_URLS["Finans Gündem"], time: "9 saat önce", title: `Ortadoğu'daki jeopolitik gerilimler güvenli liman ${assetSymbol} alımlarını hızlandırdı.` },
+      { id: 5, source: "Wall Street Journal", url: SOURCE_URLS["Wall Street Journal"], time: "14 saat önce", title: `Çin'den gelen ekonomik veriler ${assetName} piyasası için karışık sinyaller veriyor.` },
     ];
   }
 };
@@ -225,12 +240,20 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
                 </h3>
                 <div className="space-y-2">
                   {news.map((item) => (
-                    <div key={item.id} className="bg-secondary/30 rounded-xl p-3 text-sm flex gap-3">
+                    <div key={item.id} className="bg-secondary/30 rounded-xl p-3 text-sm flex gap-3 group">
                       <div className="w-1.5 rounded-full bg-primary/50 shrink-0"></div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium">{item.title}</p>
                         <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                          <span className="font-semibold text-primary/70">{item.source}</span>
+                          <a 
+                            href={item.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="font-semibold text-primary/70 hover:text-primary hover:underline transition-colors flex items-center gap-1"
+                          >
+                            {item.source}
+                            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </a>
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {item.time}</span>
                         </div>
                       </div>
