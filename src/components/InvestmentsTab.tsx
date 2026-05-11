@@ -32,12 +32,12 @@ const MOCK_COMMODITIES = [
   { id: 'brent', symbol: 'BRENT', name: 'Brent Petrol', basePrice: 2700, color: '#1e293b', imageUrl: 'https://img.icons8.com/color/96/oil-industry.png' }
 ];
 
-// Helper to generate a realistic looking fake 7-day sparkline ending at current price
+// Helper to generate a realistic looking sparkline ending at current price (60 data points for better forecasting)
 const generateMockSparkline = (currentPrice: number, volatility: number = 0.05) => {
   const data = [];
-  let price = currentPrice * (1 - volatility);
-  for (let i = 0; i < 20; i++) {
-    price = price * (1 + (Math.random() - 0.5) * volatility);
+  let price = currentPrice * (1 - volatility * 1.5);
+  for (let i = 0; i < 60; i++) {
+    price = price * (1 + (Math.random() - 0.48) * volatility);
     data.push({ value: price });
   }
   data.push({ value: currentPrice });

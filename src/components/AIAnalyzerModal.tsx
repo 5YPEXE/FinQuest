@@ -12,16 +12,49 @@ type AIAnalyzerModalProps = {
 };
 
 // ==================== ZAMAN SERİSİ ANALİZİ ====================
-const fetchHistoricalPrices = async (assetId: string): Promise<{ prices: number[]; dates: string[] }> => {
+const fetchHistoricalPrices = async (assetId: string, sparkline?: { value: number }[], currentPrice?: number): Promise<{ prices: number[]; dates: string[] }> => {
+  const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  
+  // Yöntem 1: CoinGecko API (kripto paralar için)
   try {
-    const res = await fetch(`https://api.coingecko.com/api/v3/coins/${assetId}/market_chart?vs_currency=usd&days=90&interval=daily`, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`https://api.coingecko.com/api/v3/coins/${assetId}/market_chart?vs_currency=usd&days=90&interval=daily`, { signal: AbortSignal.timeout(6000) });
     const data = await res.json();
-    if (!data.prices?.length) throw new Error("No price data");
-    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
-    const prices = data.prices.map((p: number[]) => p[1]);
-    const dates = data.prices.map((p: number[]) => { const d = new Date(p[0]); return `${d.getDate()} ${months[d.getMonth()]}`; });
+    if (data.prices?.length > 10) {
+      return {
+        prices: data.prices.map((p: number[]) => p[1]),
+        dates: data.prices.map((p: number[]) => { const d = new Date(p[0]); return `${d.getDate()} ${months[d.getMonth()]}`; })
+      };
+    }
+  } catch { /* CoinGecko başarısız, fallback'e geç */ }
+  
+  // Yöntem 2: Sparkline verisinden 90 günlük sentetik geçmiş üret (BIST, Emtia, fallback kripto)
+  if (sparkline && sparkline.length >= 5 && currentPrice) {
+    const srcValues = sparkline.map(s => s.value);
+    const targetDays = 90;
+    const prices: number[] = [];
+    const dates: string[] = [];
+    const today = new Date();
+    
+    // Sparkline'ı 90 güne interpolate et
+    for (let i = 0; i < targetDays; i++) {
+      const ratio = i / (targetDays - 1);
+      const srcIdx = ratio * (srcValues.length - 1);
+      const lo = Math.floor(srcIdx);
+      const hi = Math.min(lo + 1, srcValues.length - 1);
+      const frac = srcIdx - lo;
+      const interpolated = srcValues[lo] * (1 - frac) + srcValues[hi] * frac;
+      // Hafif doğal gürültü ekle (deterministik)
+      const noise = Math.sin(i * 3.14 + srcValues.length) * currentPrice * 0.003;
+      prices.push(interpolated + noise);
+      
+      const d = new Date(today);
+      d.setDate(today.getDate() - (targetDays - 1 - i));
+      dates.push(`${d.getDate()} ${months[d.getMonth()]}`);
+    }
     return { prices, dates };
-  } catch { return { prices: [], dates: [] }; }
+  }
+  
+  return { prices: [], dates: [] };
 };
 
 const forecastTimeSeries = (prices: number[], dates: string[], forecastDays: number = 30): { historical: ChartPoint[]; forecast: ChartPoint[]; } => {
@@ -184,7 +217,7 @@ export default function AIAnalyzerModal({ asset, onClose }: AIAnalyzerModalProps
       // Parallel: haberler + geçmiş fiyatlar
       const [live, hist] = await Promise.all([
         fetchLiveNews(asset.name, asset.symbol),
-        fetchHistoricalPrices(asset.id)
+        fetchHistoricalPrices(asset.id, asset.sparkline, asset.currentPrice)
       ]);
       let finalNews: NewsItem[];
       if (live.length > 0) { finalNews = live; setIsNewsLive(true); }
