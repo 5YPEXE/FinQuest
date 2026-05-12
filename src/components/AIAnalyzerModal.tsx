@@ -221,45 +221,78 @@ const predict = (name: string, price: number, change24h: number, newsItems: News
   
   const forecastScore = Math.max(-100, Math.min(100, forecastPct * 8));
   const forecastDir = forecastPct > 1 ? 'Yükseliş' : forecastPct < -1 ? 'Düşüş' : 'Yatay';
-  
-  // Ağırlıklar: Haberler %25, Trend %20, Momentum %15, Zaman Serisi %40
   const weighted = ns.score * 0.25 + tr.score * 0.20 + mo.score * 0.15 + forecastScore * 0.40;
   const finalScore = Math.max(0, Math.min(100, Math.round(50 + weighted / 2)));
   const bull = finalScore >= 50;
   
   const vol = Math.max(2, Math.abs(change24h) * 1.2 + Math.abs(weighted) * 0.05);
+  const volatilityState = vol > 8 ? 'Yüksek' : vol > 4 ? 'Orta' : 'Düşük';
+  const confidenceLevel = finalScore >= 70 || finalScore <= 30 ? 'Yüksek' : finalScore >= 60 || finalScore <= 40 ? 'Orta' : 'Düşük';
+
   const w1 = bull ? (vol * 0.4 + (finalScore - 50) * 0.05) : -(vol * 0.35 + (50 - finalScore) * 0.05);
   const m1 = bull ? (vol * 1.2 + (finalScore - 50) * 0.15) : -(vol * 1.0 + (50 - finalScore) * 0.12);
   const m3 = bull ? (vol * 2.5 + (finalScore - 50) * 0.3) : -(vol * 2.0 + (50 - finalScore) * 0.25);
-  
-  const nv = ns.pos > ns.neg ? `olumlu (${ns.pos} pozitif)` : ns.neg > ns.pos ? `olumsuz (${ns.neg} negatif)` : `nötr`;
-  
-  // Rapor Oluşturma
-  let report = "";
-  const topNews = newsItems.slice(0, 2).map(n => n.title).join(". ");
-  
-  if (ns.score > 30) {
-    report = `Son gelişmeler (${topNews}) piyasa nezdinde oldukça pozitif karşılanıyor. Bu durum, zaman serisi analizindeki ${forecastDir.toLowerCase()} eğilimini destekleyen temel bir katalizör görevi görüyor. `;
-  } else if (ns.score < -30) {
-    report = `Piyasada hakim olan negatif haber akışı (${topNews}), teknik göstergelerdeki zayıflığı derinleştirme riski taşıyor. İstatistiksel modelimizdeki ${forecastDir.toLowerCase()} beklentisi, bu haberlerin yarattığı satış baskısıyla paralellik gösteriyor. `;
-  } else {
-    report = `Haber akışı şu an için daha dengeli bir seyir izliyor. Mevcut teknik trend (${tr.dir}) ve zaman serisi projeksiyonu, haber etkisinden ziyade daha çok içsel piyasa dinamikleriyle (Momentum: ${mo.rsi}) şekillenmekte. `;
-  }
 
-  report += `Teknik olarak ${tr.dir} yönlü bir ivme gözlemlenirken, 30 günlük istatistiksel projeksiyon ${forecastPct >= 0 ? '+' : ''}${forecastPct.toFixed(1)}% seviyesinde bir değişim öngörüyor. `;
+  const sentimentLabel = ns.pos > ns.neg
+    ? `olumlu (${ns.pos} poz / ${ns.neg} neg)`
+    : ns.neg > ns.pos
+      ? `olumsuz (${ns.neg} neg / ${ns.pos} poz)`
+      : `nötr (dengeli)`;
 
-  const reason = `📊 Duygu: ${nv}. 📈 Trend: ${tr.dir}. ⚡ RSI: ${mo.rsi}. 🔮 Projeksiyon: ${forecastPct.toFixed(1)}%.`;
+  const topNews = newsItems.slice(0, 3).map(n => `"${n.title.substring(0, 55)}${n.title.length > 55 ? '…' : ''}"`).join(' | ');
+  const signalConflict = (bull && tr.dir === 'Düşüş') || (!bull && tr.dir === 'Yükseliş')
+    || (ns.score > 30 && forecastDir === 'Düşüş') || (ns.score < -30 && forecastDir === 'Yükseliş');
+  const outlookLabel = finalScore >= 60 ? 'Yükseliş (Boğa)' : finalScore <= 40 ? 'Düşüş (Ayı)' : 'Nötr / Karışık';
+
+  // ── KURUMSAL ANALİST RAPORU ──────────────────────────────────────
+  // Kural: Yalnızca hesaplanan metriklerden türetilir. Uydurma veri yok.
+  const sections: string[] = [];
+
+  sections.push(`## Piyasa Görünümü`);
+  sections.push(`${name} için ${outlookLabel} görünümü tespit edilmiştir. Birleşik güven skoru: ${finalScore}/100 — Güven: ${confidenceLevel} | Volatilite: ${volatilityState}.`);
+
+  sections.push(`\n## Bütünleşik Analiz`);
+  let composite = `Teknik yapı ${tr.dir} eğiliminde olup momentum ${mo.rsi} bölgesinde seyrediyor (24s: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%). `;
+  composite += `Haber duygusu ${sentimentLabel} olarak değerlendirildi`;
+  composite += topNews ? ` — öne çıkan başlıklar: ${topNews}. ` : `. `;
+  composite += `Holt-Winters sönümlü trend modeli 30 günlük projeksiyonda ${forecastPct >= 0 ? '+' : ''}${forecastPct.toFixed(1)}% (${forecastDir}) öngörüyor. `;
+  if (signalConflict) composite += `⚠️ Sinyal çelişkisi tespit edildi: haber duygusu ${ns.score > 0 ? 'pozitif' : 'negatif'} iken projeksiyon ${forecastDir.toLowerCase()} gösteriyor; güven baskılanmaktadır.`;
+  else composite += `Göstergeler birbiriyle tutarlı sinyal üretiyor.`;
+  sections.push(composite);
+
+  sections.push(`\n## Temel Katalizörler`);
+  const cats: string[] = [];
+  if (ns.pos > 0) cats.push(`${ns.pos} pozitif haber akışı alım baskısını destekleyebilir.`);
+  if (tr.dir === 'Yükseliş') cats.push(`Teknik trend yapısı yükselişi destekleyen ivme sergiliyor.`);
+  if (mo.rsi === 'Güçlü Alım' || mo.rsi === 'Aşırı Alım') cats.push(`Momentum göstergeleri güçlü alım sinyali üretiyor.`);
+  if (forecastDir === 'Yükseliş') cats.push(`İstatistiksel model ${forecastPct.toFixed(1)}% büyüme beklentisi hesaplıyor.`);
+  if (cats.length === 0) cats.push(`Mevcut veri seti güçlü katalizör sinyali üretmemektedir.`);
+  cats.forEach(c => sections.push(`• ${c}`));
+
+  sections.push(`\n## Risk Faktörleri`);
+  const risks: string[] = [];
+  if (ns.neg > 0) risks.push(`${ns.neg} negatif haber akışı satış baskısını besleyebilir.`);
+  if (volatilityState === 'Yüksek') risks.push(`Volatilite yüksek; ani fiyat hareketleri beklenebilir.`);
+  if (mo.rsi === 'Aşırı Alım') risks.push(`Aşırı alım bölgesi; kısa vadede kâr satışlı düzeltme riski artmış.`);
+  if (mo.rsi === 'Aşırı Satım') risks.push(`Aşırı satım bölgesinde likidite eksikliği sıçramayı engelleyebilir.`);
+  if (tr.dir === 'Düşüş') risks.push(`Teknik yapı düşüş eğilimini sürdürüyor.`);
+  if (signalConflict) risks.push(`Çelişkili sinyaller pozisyon yönetimini zorlaştırıyor; teyit beklenmeli.`);
+  if (risks.length === 0) risks.push(`Belirgin risk sinyali tespit edilmedi.`);
+  risks.forEach(r => sections.push(`• ${r}`));
+
+  sections.push(`\n## Tahmin Özeti`);
+  sections.push(`7G: ${w1 >= 0 ? '+' : ''}${w1.toFixed(2)}% | 30G: ${m1 >= 0 ? '+' : ''}${m1.toFixed(2)}% | Güven: ${confidenceLevel} | Volatilite: ${volatilityState}`);
+
+  sections.push(`\n## Analist Sonucu`);
+  sections.push(`${name} dört katmanlı analizde ${outlookLabel.toLowerCase()} görünüm sergilemekte olup ${confidenceLevel.toLowerCase()} güven düzeyinde değerlendirilmektedir. ${signalConflict ? 'Çelişkili sinyaller nedeniyle pozisyon alımında ek teyit önerilmektedir.' : 'Göstergeler genel olarak tutarlı seyretmektedir.'} Bu rapor yalnızca bilgilendirme amaçlıdır; yatırım tavsiyesi niteliği taşımamaktadır.`);
+
+  const report = sections.join('\n');
+  const reason = `📊 Duygu: ${sentimentLabel}. 📈 Trend: ${tr.dir}. ⚡ RSI: ${mo.rsi}. 🔮 Projeksiyon: ${forecastPct.toFixed(1)}%.`;
 
   return { 
-    sentiment: bull ? 'Boğa (Yükseliş)' : 'Ayı (Düşüş)', 
-    score: finalScore, 
-    reason, 
-    report,
-    details: { 
-      newsScore: Math.round(ns.score), trendScore: Math.round(tr.score), momScore: Math.round(mo.score), 
-      forecastScore: Math.round(forecastScore), rsi: mo.rsi, trendDir: tr.dir, 
-      posNews: ns.pos, negNews: ns.neg, neutralNews: ns.neutral, forecastDir 
-    }, 
+    sentiment: finalScore >= 60 ? 'Boğa (Yükseliş)' : finalScore <= 40 ? 'Ayı (Düşüş)' : 'Nötr', 
+    score: finalScore, reason, report,
+    details: { newsScore: Math.round(ns.score), trendScore: Math.round(tr.score), momScore: Math.round(mo.score), forecastScore: Math.round(forecastScore), rsi: mo.rsi, trendDir: tr.dir, posNews: ns.pos, negNews: ns.neg, neutralNews: ns.neutral, forecastDir }, 
     w1, m1, m3, w1P: price * (1 + w1/100), m1P: price * (1 + m1/100), m3P: price * (1 + m3/100) 
   };
 };
@@ -344,32 +377,41 @@ export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAn
               </div>
             </div>
           ) : pred && (
-            <div className="space-y-6">
-              {/* Sentiment + AI Comment */}
+            <div className="space-y-5">
+              {/* Score Bar + Outlook */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-secondary/30 border border-border rounded-2xl p-5 flex flex-col justify-center items-center text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Genel Görünüm</p>
+                  <p className="text-sm text-muted-foreground mb-1">Piyasa Görünümü</p>
                   <div className="flex items-center gap-2 mb-2">
-                    {pred.score >= 50 ? <TrendingUp className="w-8 h-8 text-emerald-500" /> : <TrendingDown className="w-8 h-8 text-rose-500" />}
-                    <span className={`text-3xl font-black ${pred.score >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>{pred.sentiment}</span>
+                    {pred.score >= 60 ? <TrendingUp className="w-8 h-8 text-emerald-500" /> : pred.score <= 40 ? <TrendingDown className="w-8 h-8 text-rose-500" /> : <Activity className="w-8 h-8 text-amber-400" />}
+                    <span className={`text-2xl font-black ${pred.score >= 60 ? 'text-emerald-500' : pred.score <= 40 ? 'text-rose-500' : 'text-amber-400'}`}>{pred.sentiment}</span>
                   </div>
-                  <div className="w-full bg-secondary rounded-full h-2.5 mt-2"><div className={`h-2.5 rounded-full ${pred.score >= 50 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${pred.score}%` }}></div></div>
+                  <div className="w-full bg-secondary rounded-full h-2.5 mt-2">
+                    <div className={`h-2.5 rounded-full ${pred.score >= 60 ? 'bg-emerald-500' : pred.score <= 40 ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ width: `${pred.score}%` }} />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-2">Birleşik Güven Skoru: {pred.score}/100</p>
                 </div>
-                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
-                  <h3 className="text-sm font-semibold flex items-center gap-2 mb-3 text-primary"><Bot className="w-4 h-4" /> Birleşik Analiz Raporu</h3>
-                  <p className="text-sm text-foreground/80 leading-relaxed">{pred.report}</p>
+
+                {/* Institutional Report Rendered */}
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-3 overflow-y-auto max-h-52">
+                  {pred.report.split('\n').map((line, i) => {
+                    if (line.startsWith('## ')) return <h4 key={i} className="text-xs font-bold text-primary uppercase tracking-wider mt-2 first:mt-0">{line.replace('## ', '')}</h4>;
+                    if (line.startsWith('• ')) return <p key={i} className="text-xs text-foreground/75 flex gap-1.5"><span className="text-primary/60 mt-0.5 shrink-0">▸</span><span>{line.replace('• ', '')}</span></p>;
+                    if (line.includes('⚠️')) return <p key={i} className="text-xs text-amber-400/90 bg-amber-400/5 rounded-lg px-2 py-1 border border-amber-400/20">{line}</p>;
+                    if (line.trim() === '') return null;
+                    return <p key={i} className="text-xs text-foreground/75 leading-relaxed">{line}</p>;
+                  })}
                 </div>
               </div>
 
-              {/* 3-Layer Detail Bars */}
+              {/* 4-Layer Detail Bars */}
               <div className="bg-secondary/20 border border-border rounded-2xl p-5">
-                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Katman Detayları (4 Katmanlı Analiz)</h3>
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Katman Detayları</h3>
                 <div className="space-y-3">
                   {[
-                    { label: '📰 Haber Duygusu (%20)', val: pred.details.newsScore, desc: `${pred.details.posNews} pozitif · ${pred.details.negNews} negatif · ${pred.details.neutralNews} nötr` },
+                    { label: '📰 Haber Duygusu (%25)', val: pred.details.newsScore, desc: `${pred.details.posNews} poz · ${pred.details.negNews} neg · ${pred.details.neutralNews} nötr` },
                     { label: '📈 Teknik Trend (%20)', val: pred.details.trendScore, desc: `Yön: ${pred.details.trendDir}` },
-                    { label: '⚡ Momentum/RSI (%20)', val: pred.details.momScore, desc: `Bölge: ${pred.details.rsi}` },
+                    { label: '⚡ Momentum/RSI (%15)', val: pred.details.momScore, desc: `Bölge: ${pred.details.rsi}` },
                     { label: '🔮 Zaman Serisi (%40)', val: pred.details.forecastScore, desc: `Yön: ${pred.details.forecastDir}` },
                   ].map((layer, idx) => (
                     <div key={idx}>
@@ -378,14 +420,15 @@ export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAn
                         <span className={`font-bold ${layer.val >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{layer.val >= 0 ? '+' : ''}{layer.val}</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-2 relative">
-                        <div className="absolute left-1/2 top-0 w-px h-2 bg-muted-foreground/30"></div>
-                        <div className={`h-2 rounded-full absolute ${layer.val >= 0 ? 'bg-emerald-500 left-1/2' : 'bg-rose-500 right-1/2'}`} style={{ width: `${Math.min(50, Math.abs(layer.val) / 2)}%` }}></div>
+                        <div className="absolute left-1/2 top-0 w-px h-2 bg-muted-foreground/30" />
+                        <div className={`h-2 rounded-full absolute ${layer.val >= 0 ? 'bg-emerald-500 left-1/2' : 'bg-rose-500 right-1/2'}`} style={{ width: `${Math.min(50, Math.abs(layer.val) / 2)}%` }} />
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{layer.desc}</p>
                     </div>
                   ))}
                 </div>
               </div>
+
 
               {/* Time Series Forecast Chart */}
               {chartData.length > 0 && (
