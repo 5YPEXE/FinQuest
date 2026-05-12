@@ -56,47 +56,68 @@ const fetchHistoricalPrices = async (assetId: string, sparkline?: { value: numbe
   return { prices: [], dates: [] };
 };
 
-const forecastTimeSeries = (prices: number[], dates: string[], forecastDays: number = 30): { historical: ChartPoint[]; forecast: ChartPoint[]; } => {
+const forecastTimeSeries = (prices: number[], dates: string[], forecastDays: number = 30, sentimentScore: number = 0): { historical: ChartPoint[]; forecast: ChartPoint[]; } => {
   if (prices.length < 10) return { historical: [], forecast: [] };
   const n = prices.length;
-  // Linear Regression: y = mx + b
+  
+  // 1. Trend Analizi (Linear Regression)
   let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
   for (let i = 0; i < n; i++) { sumX += i; sumY += prices[i]; sumXY += i * prices[i]; sumXX += i * i; }
-  const m = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-  const b = (sumY - m * sumX) / n;
-  // EMA (son 14 gün)
-  const emaPeriod = Math.min(14, n);
-  const k = 2 / (emaPeriod + 1);
-  let ema = prices.slice(n - emaPeriod).reduce((a, b) => a + b, 0) / emaPeriod;
-  for (let i = n - emaPeriod; i < n; i++) ema = prices[i] * k + ema * (1 - k);
-  // Volatilite (standart sapma son 30 gün)
-  const recent = prices.slice(-30);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+
+  // 2. Volatilite ve Ortalama
+  const recent = prices.slice(-20);
   const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
   const std = Math.sqrt(recent.reduce((s, p) => s + (p - avg) ** 2, 0) / recent.length);
-  const volRatio = std / avg; // Relative volatility
-  // Historical chart points
+  const volRatio = Math.max(0.01, std / avg);
+  
   const historical: ChartPoint[] = dates.map((d, i) => ({ date: d, price: prices[i] }));
-  // Forecast: blend linear regression + EMA momentum
   const forecast: ChartPoint[] = [];
   const lastPrice = prices[n - 1];
   const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
-  // Bridge point: connect historical to forecast
   const today = new Date();
+
   forecast.push({ date: dates[dates.length - 1], price: lastPrice, forecast: lastPrice });
+
+  // İleriye dönük tahmin döngüsü
+  let currentSimPrice = lastPrice;
+  let randomWalk = 0;
+
   for (let i = 1; i <= forecastDays; i++) {
-    const linReg = m * (n + i) + b; // Linear regression projection
-    const emaTrend = ema + (ema - prices[n - emaPeriod]) * (i / forecastDays); // EMA momentum
-    // Blend: 60% linear regression, 40% EMA trend
-    let predicted = linReg * 0.6 + emaTrend * 0.4;
-    // Add realistic noise based on volatility
-    const noise = (Math.sin(i * 2.7 + n) * 0.5 + Math.cos(i * 1.3) * 0.3) * volRatio * lastPrice * 0.3;
-    predicted += noise;
-    // Clamp to reasonable range (±40% of last price)
-    predicted = Math.max(lastPrice * 0.6, Math.min(lastPrice * 1.4, predicted));
+    // A. Temel Trend (Haber Duygusu ile modifiye edilmiş eğim)
+    const sentimentImpact = (sentimentScore / 100) * (lastPrice * 0.002); // Duygu etkisini fiyatın %0.2'si olarak ölçekle
+    const baseTrend = slope + sentimentImpact;
+    
+    // B. Ortalama Dönüş (Mean Reversion)
+    // Fiyat ortalamadan çok uzaklaştıysa geri çekme kuvveti uygula
+    const deviation = (currentSimPrice - avg) / (std || 1);
+    const reversionStrength = -deviation * (volRatio * lastPrice * 0.05);
+
+    // C. Döngüsel Dalga (Cyclical Component)
+    // 15 ve 45 günlük iki farklı piyasa döngüsü simüle et
+    const cycle1 = Math.sin((n + i) / 5) * (lastPrice * volRatio * 0.4);
+    const cycle2 = Math.cos((n + i) / 12) * (lastPrice * volRatio * 0.6);
+    
+    // D. Rastgele Yürüyüş (Brownian Motion)
+    const step = (Math.random() - 0.5) * 2 * (volRatio * lastPrice * 0.8);
+    randomWalk += step * 0.3; // Kümülatif hata
+
+    // E. Birleştirme (Hybrid Model)
+    // i=1 iken mevcut fiyattan başla, i ilerledikçe trend ve döngüler baskın gelsin
+    const trendComponent = baseTrend * i;
+    let predicted = lastPrice + trendComponent + reversionStrength + cycle1 + cycle2 + randomWalk;
+
+    // Fiyatın sıfıra düşmesini veya aşırı saçmalamasını engelle
+    predicted = Math.max(lastPrice * 0.5, Math.min(lastPrice * 1.8, predicted));
+    
+    currentSimPrice = predicted;
+
     const futureDate = new Date(today);
     futureDate.setDate(today.getDate() + i);
     forecast.push({ date: `${futureDate.getDate()} ${months[futureDate.getMonth()]}`, forecast: predicted });
   }
+
   return { historical, forecast };
 };
 
@@ -229,10 +250,13 @@ export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAn
       const finalNews = live;
       setIsNewsLive(live.length > 0);
       setNews(finalNews);
+      
+      const ns = analyzeNews(finalNews);
+      
       // Time series forecast
       let forecastPct = 0;
       if (hist.prices.length > 10) {
-        const { historical, forecast } = forecastTimeSeries(hist.prices, hist.dates, 30);
+        const { historical, forecast } = forecastTimeSeries(hist.prices, hist.dates, 30, ns.score);
         setForecastStart(historical[historical.length - 1]?.date || "");
         setChartData([...historical, ...forecast]);
         // Tahmin yönünü hesapla: son gerçek fiyat vs 30 gün sonrası
