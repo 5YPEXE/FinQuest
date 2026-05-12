@@ -202,27 +202,66 @@ const analyzeMomentum = (c: number) => ({
   rsi: c > 7 ? 'Aşırı Alım' : c > 3 ? 'Güçlü Alım' : c < -7 ? 'Aşırı Satım' : c < -3 ? 'Güçlü Satım' : 'Nötr'
 });
 
-type Pred = { sentiment: string; score: number; reason: string; details: { newsScore: number; trendScore: number; momScore: number; forecastScore: number; rsi: string; trendDir: string; posNews: number; negNews: number; neutralNews: number; forecastDir: string }; w1: number; m1: number; m3: number; w1P: number; m1P: number; m3P: number };
+type Pred = { 
+  sentiment: string; 
+  score: number; 
+  reason: string; 
+  report: string;
+  details: { 
+    newsScore: number; trendScore: number; momScore: number; forecastScore: number; 
+    rsi: string; trendDir: string; posNews: number; negNews: number; neutralNews: number; forecastDir: string 
+  }; 
+  w1: number; m1: number; m3: number; w1P: number; m1P: number; m3P: number 
+};
 
 const predict = (name: string, price: number, change24h: number, newsItems: NewsItem[], sparkline: { value: number }[], forecastPct: number = 0): Pred => {
   const ns = analyzeNews(newsItems);
   const tr = analyzeTrend(sparkline);
   const mo = analyzeMomentum(change24h);
-  // 4. Katman: Zaman serisi tahmin yönü
+  
   const forecastScore = Math.max(-100, Math.min(100, forecastPct * 8));
   const forecastDir = forecastPct > 1 ? 'Yükseliş' : forecastPct < -1 ? 'Düşüş' : 'Yatay';
-  // Ağırlıklar: Haberler %20, Sparkline Trend %20, Momentum %20, Zaman Serisi %40
-  const weighted = ns.score * 0.20 + tr.score * 0.20 + mo.score * 0.20 + forecastScore * 0.40;
+  
+  // Ağırlıklar: Haberler %25, Trend %20, Momentum %15, Zaman Serisi %40
+  const weighted = ns.score * 0.25 + tr.score * 0.20 + mo.score * 0.15 + forecastScore * 0.40;
   const finalScore = Math.max(0, Math.min(100, Math.round(50 + weighted / 2)));
   const bull = finalScore >= 50;
+  
   const vol = Math.max(2, Math.abs(change24h) * 1.2 + Math.abs(weighted) * 0.05);
   const w1 = bull ? (vol * 0.4 + (finalScore - 50) * 0.05) : -(vol * 0.35 + (50 - finalScore) * 0.05);
   const m1 = bull ? (vol * 1.2 + (finalScore - 50) * 0.15) : -(vol * 1.0 + (50 - finalScore) * 0.12);
   const m3 = bull ? (vol * 2.5 + (finalScore - 50) * 0.3) : -(vol * 2.0 + (50 - finalScore) * 0.25);
-  const nv = ns.pos > ns.neg ? `olumlu (${ns.pos} pozitif / ${ns.neg} negatif)` : ns.neg > ns.pos ? `olumsuz (${ns.neg} negatif / ${ns.pos} pozitif)` : `nötr (dengeli)`;
-  let reason = `📊 Taranan ${newsItems.length} haberin duygu analizi: ${nv}. 📈 Teknik trend: ${tr.dir} eğilimli. ⚡ RSI bölgesi: ${mo.rsi} (24s: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%). 🔮 Zaman serisi tahmini: ${forecastDir} (${forecastPct >= 0 ? '+' : ''}${forecastPct.toFixed(1)}%). `;
-  reason += bull ? `Dört katmanlı analiz birleştirildiğinde, ${name} için kısa-orta vadede yükseliş potansiyeli öne çıkıyor.` : `Dört katmanlı analiz birleştirildiğinde, ${name} için kısa vadede temkinli olunması gerektiği sinyali güçleniyor.`;
-  return { sentiment: bull ? 'Boğa (Yükseliş)' : 'Ayı (Düşüş)', score: finalScore, reason, details: { newsScore: Math.round(ns.score), trendScore: Math.round(tr.score), momScore: Math.round(mo.score), forecastScore: Math.round(forecastScore), rsi: mo.rsi, trendDir: tr.dir, posNews: ns.pos, negNews: ns.neg, neutralNews: ns.neutral, forecastDir }, w1, m1, m3, w1P: price * (1 + w1/100), m1P: price * (1 + m1/100), m3P: price * (1 + m3/100) };
+  
+  const nv = ns.pos > ns.neg ? `olumlu (${ns.pos} pozitif)` : ns.neg > ns.pos ? `olumsuz (${ns.neg} negatif)` : `nötr`;
+  
+  // Rapor Oluşturma
+  let report = "";
+  const topNews = newsItems.slice(0, 2).map(n => n.title).join(". ");
+  
+  if (ns.score > 30) {
+    report = `Son gelişmeler (${topNews}) piyasa nezdinde oldukça pozitif karşılanıyor. Bu durum, zaman serisi analizindeki ${forecastDir.toLowerCase()} eğilimini destekleyen temel bir katalizör görevi görüyor. `;
+  } else if (ns.score < -30) {
+    report = `Piyasada hakim olan negatif haber akışı (${topNews}), teknik göstergelerdeki zayıflığı derinleştirme riski taşıyor. İstatistiksel modelimizdeki ${forecastDir.toLowerCase()} beklentisi, bu haberlerin yarattığı satış baskısıyla paralellik gösteriyor. `;
+  } else {
+    report = `Haber akışı şu an için daha dengeli bir seyir izliyor. Mevcut teknik trend (${tr.dir}) ve zaman serisi projeksiyonu, haber etkisinden ziyade daha çok içsel piyasa dinamikleriyle (Momentum: ${mo.rsi}) şekillenmekte. `;
+  }
+
+  report += `Teknik olarak ${tr.dir} yönlü bir ivme gözlemlenirken, 30 günlük istatistiksel projeksiyon ${forecastPct >= 0 ? '+' : ''}${forecastPct.toFixed(1)}% seviyesinde bir değişim öngörüyor. `;
+
+  const reason = `📊 Duygu: ${nv}. 📈 Trend: ${tr.dir}. ⚡ RSI: ${mo.rsi}. 🔮 Projeksiyon: ${forecastPct.toFixed(1)}%.`;
+
+  return { 
+    sentiment: bull ? 'Boğa (Yükseliş)' : 'Ayı (Düşüş)', 
+    score: finalScore, 
+    reason, 
+    report,
+    details: { 
+      newsScore: Math.round(ns.score), trendScore: Math.round(tr.score), momScore: Math.round(mo.score), 
+      forecastScore: Math.round(forecastScore), rsi: mo.rsi, trendDir: tr.dir, 
+      posNews: ns.pos, negNews: ns.neg, neutralNews: ns.neutral, forecastDir 
+    }, 
+    w1, m1, m3, w1P: price * (1 + w1/100), m1P: price * (1 + m1/100), m3P: price * (1 + m3/100) 
+  };
 };
 
 // ==================== COMPONENT ====================
@@ -318,8 +357,8 @@ export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAn
                   <p className="text-xs text-muted-foreground mt-2">Birleşik Güven Skoru: {pred.score}/100</p>
                 </div>
                 <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
-                  <h3 className="text-sm font-semibold flex items-center gap-2 mb-3 text-primary"><Bot className="w-4 h-4" /> AI Yorumu</h3>
-                  <p className="text-sm text-foreground/80 leading-relaxed">{pred.reason}</p>
+                  <h3 className="text-sm font-semibold flex items-center gap-2 mb-3 text-primary"><Bot className="w-4 h-4" /> Birleşik Analiz Raporu</h3>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{pred.report}</p>
                 </div>
               </div>
 
