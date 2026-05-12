@@ -34,42 +34,20 @@ const fetchHistoricalPrices = async (assetId: string, sparkline?: { value: numbe
     }
   } catch (e) { console.warn(`CoinGecko fetch failed for ${cgId}:`, e); }
   
-  // Yöntem 2: Sparkline verisinden 90 günlük sentetik geçmiş üret (BIST, Emtia, fallback kripto)
+  // Yöntem 2: Sparkline verisinden (geçici)
   if (sparkline && sparkline.length >= 5 && currentPrice) {
     const srcValues = sparkline.map(s => s.value);
     const targetDays = 90;
     const prices: number[] = [];
     const dates: string[] = [];
     const today = new Date();
-    
-    // Sparkline'ı 90 güne interpolate et
     for (let i = 0; i < targetDays; i++) {
       const ratio = i / (targetDays - 1);
       const srcIdx = ratio * (srcValues.length - 1);
-      const lo = Math.floor(srcIdx);
-      const hi = Math.min(lo + 1, srcValues.length - 1);
-      const frac = srcIdx - lo;
-      const interpolated = srcValues[lo] * (1 - frac) + srcValues[hi] * frac;
-      // Hafif doğal gürültü ekle (deterministik)
-      const noise = Math.sin(i * 3.14 + srcValues.length) * currentPrice * 0.003;
-      prices.push(interpolated + noise);
-      
+      const interpolated = srcValues[Math.floor(srcIdx)];
+      prices.push(interpolated);
       const d = new Date(today);
       d.setDate(today.getDate() - (targetDays - 1 - i));
-      dates.push(`${d.getDate()} ${months[d.getMonth()]}`);
-    }
-    return { prices, dates };
-  }
-  
-  // Yöntem 3: Hiç veri yoksa rastgele geçmiş üret (Acil Durum Fallback)
-  if (currentPrice) {
-    const prices = [];
-    const dates = [];
-    const today = new Date();
-    for (let i = 0; i < 90; i++) {
-      prices.push(currentPrice * (0.9 + Math.random() * 0.2));
-      const d = new Date(today);
-      d.setDate(today.getDate() - (89 - i));
       dates.push(`${d.getDate()} ${months[d.getMonth()]}`);
     }
     return { prices, dates };
@@ -179,33 +157,7 @@ const fetchLiveNews = async (name: string, symbol: string): Promise<NewsItem[]> 
   return allItems.slice(0, 15);
 };
 
-const generateMockNews = (name: string, sym: string): NewsItem[] => {
-  const mk = (t: string, s: string) => ({ url: `https://www.google.com/search?q=${encodeURIComponent(t+" "+s)}`, isLive: false, exactDate: '', publishedAt: 0 });
-  const crypto = ['BTC','ETH','USDT','SOL','BNB','XRP','ADA','DOGE','TRX','LINK','DOT','AVAX'].includes(sym);
-  const bist = ['THYAO','ASELS','KCHOL','SASA','TUPRS'].includes(sym);
-  const items = bist ? [
-    { id:1, source:"KAP", time:"15 dk önce", title:`${name} 3. Çeyrek Bilanço Beklentileri Revize Edildi.` },
-    { id:2, source:"Bloomberg HT", time:"2 saat önce", title:`Yabancı fonların ${sym} hissesindeki alımları hızlandı.` },
-    { id:3, source:"KAP", time:"4 saat önce", title:`${name} yeni yatırım teşvik belgesi aldı.` },
-    { id:4, source:"Investing", time:"7 saat önce", title:`Aracı kurumlar ${sym} için hedef fiyatı yukarı yönlü güncelledi.` },
-    { id:5, source:"Reuters", time:"12 saat önce", title:`Global ekonomik veriler ${name} sektöründe iyimserlik yaratıyor.` },
-    { id:6, source:"KAP", time:"1 gün önce", title:`${name} yönetim kurulundan bedelsiz sermaye artırımı kararı!` },
-  ] : crypto ? [
-    { id:1, source:"CoinDesk", time:"20 dk önce", title:`SEC'in son kararı sonrası ${name} işlem hacminde patlama yaşandı.` },
-    { id:2, source:"Whale Alert", time:"1 saat önce", title:`Bilinmeyen bir cüzdandan borsalara devasa ${sym} transferi gerçekleşti.` },
-    { id:3, source:"CoinTelegraph", time:"3 saat önce", title:`Kurumsal balinalar yüklü miktarda ${name} toplamaya devam ediyor.` },
-    { id:4, source:"Decrypt", time:"5 saat önce", title:`${sym} ağındaki aktif adres sayısı tüm zamanların en yüksek seviyesinde.` },
-    { id:5, source:"Reuters", time:"10 saat önce", title:`Global piyasalardaki risk iştahı ${name} fiyatını destekliyor.` },
-    { id:6, source:"Bloomberg", time:"18 saat önce", title:`Asya merkezli fonların kripto paralara ilgisi yeniden artıyor.` },
-  ] : [
-    { id:1, source:"Investing", time:"45 dk önce", title:`FED'in faiz açıklamaları ${name} fiyatlamalarını doğrudan etkiledi.` },
-    { id:2, source:"Reuters", time:"2 saat önce", title:`Küresel arz endişeleri ${sym} piyasasında oynaklık yarattı.` },
-    { id:3, source:"Bloomberg", time:"5 saat önce", title:`Merkez bankalarının ${name} rezerv talebi rekor seviyelere ulaştı.` },
-    { id:4, source:"Finans Gündem", time:"9 saat önce", title:`Ortadoğu'daki jeopolitik gerilimler güvenli liman ${sym} alımlarını hızlandırdı.` },
-    { id:5, source:"Wall Street Journal", time:"14 saat önce", title:`Çin'den gelen ekonomik veriler ${name} piyasası için karışık sinyaller veriyor.` },
-  ];
-  return items.map(i => ({ ...i, ...mk(i.title, i.source) }));
-};
+// NLP Motoru sadece gerçek haberleri analiz eder.
 
 // ==================== 4 KATMANLI ANALİZ MOTORU (GELİŞMİŞ NLP) ====================
 const POS_KW = ['yükseliş','yükseldi','artış','arttı','rekor','pozitif','güçlü','destekliyor','iyimser','talep','alım','büyüme','kazanç','onay','patlama','toparlanma','rally','surge','bullish','gain','high','boost','profit','growth','teşvik','hızlandı','toplamaya','artıyor','hedef fiyat','bedelsiz','açık standart','kar','temettü','ihracat','verimli','dönüşüm','stratejik','ortaklık','genişleme','ralli','sıçrama','yükselen','güçleniyor','kârlılık','potansiyel','fırsat','upgrade','outperform','beat','exceed','strong','recovery','breakout','momentum','uptick','optimistic'];
@@ -274,9 +226,8 @@ export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAn
         fetchLiveNews(asset.name, asset.symbol).catch(() => []),
         fetchHistoricalPrices(asset.id, asset.sparkline, asset.currentPrice, isTry, usdRate)
       ]);
-      let finalNews: NewsItem[];
-      if (live.length > 0) { finalNews = live; setIsNewsLive(true); }
-      else { finalNews = generateMockNews(asset.name, asset.symbol); setIsNewsLive(false); }
+      const finalNews = live;
+      setIsNewsLive(live.length > 0);
       setNews(finalNews);
       // Time series forecast
       let forecastPct = 0;

@@ -183,12 +183,8 @@ export default function InvestmentsTab({
       setCryptos(newCryptos);
       newCryptos.forEach(c => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
     } else {
-      console.warn('⚠️ Binance API hatası, mock kripto verileri kullanılıyor.');
-      const mockCryptos = [
-        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', priceUsd: 104000, priceTry: 104000 * currentUsdRate, change24h: 1.2, color: '#f7931a', imageUrl: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
-        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', priceUsd: 2500, priceTry: 2500 * currentUsdRate, change24h: -0.8, color: '#627eea', imageUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
-      ];
-      setCryptos(mockCryptos);
+      console.error('❌ Binance API verisi alınamadı.');
+      setCryptos([]);
     }
 
     // 3. BIST100 (TradingView — tarayıcıdan)
@@ -209,31 +205,8 @@ export default function InvestmentsTab({
       setStocks(liveStocks);
       console.log(`✅ BIST100: ${liveStocks.length} hisse yüklendi.`);
     } else {
-      console.warn('⚠️ BIST verisi alınamadı, fallback BIST30 yükleniyor...');
-      const fallbackBIST = [
-        { symbol: 'THYAO', name: 'Türk Hava Yolları', price: 285.50 },
-        { symbol: 'ASELS', name: 'Aselsan', price: 58.20 },
-        { symbol: 'EREGL', name: 'Erdemir', price: 45.10 },
-        { symbol: 'KCHOL', name: 'Koç Holding', price: 175.40 },
-        { symbol: 'SAHOL', name: 'Sabancı Holding', price: 82.15 },
-        { symbol: 'SISE', name: 'Şişecam', price: 48.90 },
-        { symbol: 'TUPRS', name: 'Tüpraş', price: 155.60 },
-        { symbol: 'AKBNK', name: 'Akbank', price: 42.30 },
-        { symbol: 'GARAN', name: 'Garanti BBVA', price: 75.80 },
-        { symbol: 'BIMAS', name: 'BİM Mağazalar', price: 385.00 },
-      ];
-      const fallbackStocks: Asset[] = fallbackBIST.map((b, idx) => {
-        const id = b.symbol.toLowerCase();
-        newSparklines[id] = generateMockSparkline(b.price, 0.05);
-        return {
-          id, symbol: b.symbol, name: b.name,
-          priceTry: b.price, priceUsd: b.price / currentUsdRate,
-          change24h: (Math.random() * 4) - 2,
-          color: STOCK_COLORS[idx % STOCK_COLORS.length],
-          imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${b.symbol.toLowerCase()}.com.tr`
-        };
-      });
-      setStocks(fallbackStocks);
+      console.error('❌ BIST verisi alınamadı.');
+      setStocks([]);
     }
 
     // 4. Emtia (TradingView — tarayıcıdan)
