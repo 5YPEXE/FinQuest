@@ -329,7 +329,7 @@ export default function InvestmentsTab({
             <button onClick={() => setCurrency('try')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currency === 'try' ? 'bg-card text-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>TRY</button>
             <button onClick={() => setCurrency('usd')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currency === 'usd' ? 'bg-card text-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>USD</button>
           </div>
-          <button onClick={fetchInitialData} disabled={isLoading} className="p-2 bg-secondary rounded-xl hover:bg-border transition-colors">
+          <button onClick={() => loadData(true)} disabled={isLoading} className="p-2 bg-secondary rounded-xl hover:bg-border transition-colors">
             <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin text-primary' : 'text-muted-foreground'}`} />
           </button>
         </div>
