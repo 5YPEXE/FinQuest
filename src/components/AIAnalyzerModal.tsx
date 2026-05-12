@@ -346,24 +346,25 @@ export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAn
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-background/90 backdrop-blur-sm">
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-2xl bg-card border border-border rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-4xl bg-card border border-border rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border/50 bg-secondary/30 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
           <div className="flex items-center gap-4 relative z-10">
-            <div className="w-12 h-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"><Bot className="w-6 h-6" /></div>
+            <div className="p-3 bg-primary/10 rounded-2xl">
+              <Bot className="w-6 h-6 text-primary" />
+            </div>
             <div>
-              <h2 className="text-xl font-bold flex items-center gap-2">FinQuest AI Analisti <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] rounded-full uppercase tracking-wider font-bold">v3</span></h2>
-              <p className="text-sm text-muted-foreground">{asset.name} ({asset.symbol}) · 4 Katmanlı Yapay Zeka Analizi</p>
+              <h2 className="text-xl font-bold flex items-center gap-2">FinQuest AI Analisti <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] rounded-full uppercase tracking-wider font-bold">v3.1</span></h2>
+              <p className="text-sm text-muted-foreground">{asset.name} ({asset.symbol}) · Kurumsal Düzey Analiz Raporu</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-secondary transition-colors relative z-10"><X className="w-5 h-5 text-muted-foreground" /></button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 overflow-y-auto flex-1 space-y-8 custom-scrollbar">
           {isAnalyzing ? (
-            <div className="flex flex-col items-center justify-center py-20 space-y-6">
+            <div className="flex flex-col items-center justify-center py-24 space-y-6">
               <div className="relative w-24 h-24">
                 <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
                 <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
@@ -377,69 +378,113 @@ export default function AIAnalyzerModal({ asset, usdRate = 38.5, onClose }: AIAn
               </div>
             </div>
           ) : pred && (
-            <div className="space-y-5">
-              {/* Score Bar + Outlook */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-secondary/30 border border-border rounded-2xl p-5 flex flex-col justify-center items-center text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Piyasa Görünümü</p>
-                  <div className="flex items-center gap-2 mb-2">
+            <div className="space-y-8">
+              {/* Top Summary Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-secondary/30 border border-border rounded-2xl p-5 flex flex-col items-center text-center">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Genel Görünüm</p>
+                  <div className="flex items-center gap-3">
                     {pred.score >= 60 ? <TrendingUp className="w-8 h-8 text-emerald-500" /> : pred.score <= 40 ? <TrendingDown className="w-8 h-8 text-rose-500" /> : <Activity className="w-8 h-8 text-amber-400" />}
                     <span className={`text-2xl font-black ${pred.score >= 60 ? 'text-emerald-500' : pred.score <= 40 ? 'text-rose-500' : 'text-amber-400'}`}>{pred.sentiment}</span>
                   </div>
-                  <div className="w-full bg-secondary rounded-full h-2.5 mt-2">
-                    <div className={`h-2.5 rounded-full ${pred.score >= 60 ? 'bg-emerald-500' : pred.score <= 40 ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ width: `${pred.score}%` }} />
+                  <div className="w-full bg-secondary rounded-full h-2 mt-4 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-1000 ${pred.score >= 60 ? 'bg-emerald-500' : pred.score <= 40 ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ width: `${pred.score}%` }} />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Birleşik Güven Skoru: {pred.score}/100</p>
+                  <p className="text-xs font-bold mt-2">Güven Skoru: {pred.score}/100</p>
                 </div>
 
-                {/* Institutional Report Rendered */}
-                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-3 overflow-y-auto max-h-52">
-                  {pred.report.split('\n').map((line, i) => {
-                    if (line.startsWith('## ')) return <h4 key={i} className="text-xs font-bold text-primary uppercase tracking-wider mt-2 first:mt-0">{line.replace('## ', '')}</h4>;
-                    if (line.startsWith('• ')) return <p key={i} className="text-xs text-foreground/75 flex gap-1.5"><span className="text-primary/60 mt-0.5 shrink-0">▸</span><span>{line.replace('• ', '')}</span></p>;
-                    if (line.includes('⚠️')) return <p key={i} className="text-xs text-amber-400/90 bg-amber-400/5 rounded-lg px-2 py-1 border border-amber-400/20">{line}</p>;
-                    if (line.trim() === '') return null;
-                    return <p key={i} className="text-xs text-foreground/75 leading-relaxed">{line}</p>;
-                  })}
+                <div className="bg-secondary/30 border border-border rounded-2xl p-5 flex flex-col justify-center gap-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground font-medium">Model Güveni</span>
+                    <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">{pred.report.match(/Güven: ([^|]+)/)?.[1]?.trim() || 'Orta'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground font-medium">Piyasa Volatilitesi</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold">{pred.report.match(/Volatilite: ([^|$\n]+)/)?.[1]?.trim() || 'Düşük'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground font-medium">Momentum</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">{pred.details.rsi}</span>
+                  </div>
+                </div>
+
+                <div className="bg-secondary/30 border border-border rounded-2xl p-5 flex flex-col justify-center gap-2">
+                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Katman Katkıları</p>
+                   <div className="space-y-1.5">
+                      {[
+                        { l: 'Haber', v: pred.details.newsScore },
+                        { l: 'Trend', v: pred.details.trendScore },
+                        { l: 'Zaman Serisi', v: pred.details.forecastScore }
+                      ].map(l => (
+                        <div key={l.l} className="flex items-center gap-2">
+                          <span className="text-[10px] w-16 text-muted-foreground">{l.l}</span>
+                          <div className="flex-1 h-1 bg-secondary rounded-full overflow-hidden">
+                            <div className={`h-full ${l.v >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.abs(l.v)}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                   </div>
                 </div>
               </div>
 
-              {/* 4-Layer Detail Bars */}
-              <div className="bg-secondary/20 border border-border rounded-2xl p-5">
-                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Katman Detayları</h3>
-                <div className="space-y-3">
-                  {[
-                    { label: '📰 Haber Duygusu (%25)', val: pred.details.newsScore, desc: `${pred.details.posNews} poz · ${pred.details.negNews} neg · ${pred.details.neutralNews} nötr` },
-                    { label: '📈 Teknik Trend (%20)', val: pred.details.trendScore, desc: `Yön: ${pred.details.trendDir}` },
-                    { label: '⚡ Momentum/RSI (%15)', val: pred.details.momScore, desc: `Bölge: ${pred.details.rsi}` },
-                    { label: '🔮 Zaman Serisi (%40)', val: pred.details.forecastScore, desc: `Yön: ${pred.details.forecastDir}` },
-                  ].map((layer, idx) => (
-                    <div key={idx}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-medium">{layer.label}</span>
-                        <span className={`font-bold ${layer.val >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{layer.val >= 0 ? '+' : ''}{layer.val}</span>
-                      </div>
-                      <div className="w-full bg-secondary rounded-full h-2 relative">
-                        <div className="absolute left-1/2 top-0 w-px h-2 bg-muted-foreground/30" />
-                        <div className={`h-2 rounded-full absolute ${layer.val >= 0 ? 'bg-emerald-500 left-1/2' : 'bg-rose-500 right-1/2'}`} style={{ width: `${Math.min(50, Math.abs(layer.val) / 2)}%` }} />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{layer.desc}</p>
+              {/* Detailed Report Section */}
+              <div className="space-y-6">
+                {pred.report.split('\n\n').map((section, idx) => {
+                  const lines = section.split('\n');
+                  const title = lines[0].startsWith('## ') ? lines[0].replace('## ', '') : null;
+                  const content = title ? lines.slice(1) : lines;
+
+                  if (!title) return null;
+
+                  return (
+                    <div key={idx} className="bg-secondary/15 border border-border/50 rounded-2xl p-6 transition-all hover:border-primary/20">
+                      <h3 className="text-sm font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                        {title === 'Piyasa Görünümü' && <Activity className="w-4 h-4" />}
+                        {title === 'Bütünleşik Analiz' && <BarChart3 className="w-4 h-4" />}
+                        {title === 'Temel Katalizörler' && <TrendingUp className="w-4 h-4" />}
+                        {title === 'Risk Faktörleri' && <TrendingDown className="w-4 h-4" />}
+                        {title === 'Analist Sonucu' && <Bot className="w-4 h-4" />}
+                        {title}
+                      </h3>
+                      
+                      {title === 'Temel Katalizörler' || title === 'Risk Faktörleri' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {content.map((l, i) => (
+                            <div key={i} className={`p-3 rounded-xl border flex gap-3 items-start ${title === 'Temel Katalizörler' ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10'}`}>
+                               <div className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${title === 'Temel Katalizörler' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                               <p className="text-sm text-foreground/85 leading-relaxed">{l.replace('• ', '')}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {content.map((l, i) => {
+                            if (l.includes('⚠️')) return <p key={i} className="text-sm text-amber-400 bg-amber-400/5 border border-amber-400/20 rounded-xl p-4 leading-relaxed">{l}</p>;
+                            return <p key={i} className="text-sm text-foreground/80 leading-relaxed italic last:not-italic">{l}</p>;
+                          })}
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-
 
               {/* Time Series Forecast Chart */}
               {chartData.length > 0 && (
-                <div className="bg-secondary/20 border border-border rounded-2xl p-5">
-                  <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
-                    <Activity className="w-4 h-4" /> Zaman Serisi Tahmini (90 Gün Geçmiş + 30 Gün Tahmin)
-                  </h3>
-                  <p className="text-[10px] text-muted-foreground mb-4">Linear Regression + EMA blending · {asset.currencySymbol === '₺' ? 'TRY' : 'USD'} bazlı</p>
-                  <div className="h-52 min-h-[200px]">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                <div className="bg-secondary/15 border border-border/50 rounded-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-sm font-bold flex items-center gap-2"><Activity className="w-4 h-4" /> Zaman Serisi Projeksiyonu</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Holt-Winters Damped Trend Modeli · 90G Geçmiş + 30G Tahmin</p>
+                    </div>
+                    <div className="flex gap-4 text-[10px] font-medium">
+                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Geçmiş</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-indigo-500" /> Tahmin</div>
+                    </div>
+                  </div>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="gradHistory" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
