@@ -127,37 +127,16 @@ export default function InvestmentsTab({
     return res.json();
   };
 
-  const fetchInitialData = async () => {
-    setIsLoading(true);
-    const newSparklines: Record<string, { value: number }[]> = {};
-    let currentUsdRate = 38.5;
+  const loadData = async (isFirstLoad: boolean = false) => {
+    if (isFirstLoad) setIsLoading(true);
+    let currentUsdRate = usdRate;
 
     // === PARALEL: Tüm verileri aynı anda çek (tarayıcı + API) ===
-    const [bistRes, fxRes, cfdRes, futuresRes, apiRes] = await Promise.allSettled([
-      // Tarayıcıdan: BIST100 (CORS proxy ile)
-      fetchTradingViewClient('turkey', {
-        filter: [{ left: 'exchange', operation: 'equal', right: 'BIST' }],
-        symbols: { query: { types: ['stock'] } },
-        columns: ['close', 'change', 'description', 'market_cap_basic'],
-        sort: { sortBy: 'market_cap_basic', sortOrder: 'desc' },
-        range: [0, 50]
-      }),
-      // Tarayıcıdan: USD/TRY kuru
+    const [fxRes, apiRes] = await Promise.allSettled([
       fetchTradingViewClient('forex', {
         symbols: { tickers: ['FX_IDC:USDTRY'], query: { types: [] } },
         columns: ['close', 'change']
       }),
-      // Tarayıcıdan: Emtia CFD (Altın, Gümüş)
-      fetchTradingViewClient('cfd', {
-        symbols: { tickers: ['TVC:GOLD', 'TVC:SILVER'], query: { types: [] } },
-        columns: ['close', 'change']
-      }),
-      // Tarayıcıdan: Emtia Futures (Petrol, Platin, Paladyum, Bakır)
-      fetchTradingViewClient('futures', {
-        symbols: { tickers: ['NYMEX:BZ1!', 'NYMEX:PL1!', 'NYMEX:PA1!', 'COMEX:HG1!'], query: { types: [] } },
-        columns: ['close', 'change']
-      }),
-      // API Route'dan: Binance kripto verileri
       fetch('/api/finance', { cache: 'no-store' }).then(r => r.json())
     ]);
 
@@ -181,13 +160,15 @@ export default function InvestmentsTab({
         };
       });
       setCryptos(newCryptos);
-      newCryptos.forEach(c => { newSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
-    } else {
-      console.error('❌ Binance API verisi alınamadı.');
-      setCryptos([]);
+      
+      if (isFirstLoad) {
+        const firstSparklines: Record<string, { value: number }[]> = {};
+        newCryptos.forEach(c => { firstSparklines[c.id] = generateMockSparkline(c.priceTry, 0.1); });
+        setSparklines(prev => ({ ...prev, ...firstSparklines }));
+      }
     }
 
-    // 3. BIST100 (SİMULASYON MODU - TradingView bloklu olduğu için)
+    // 3. BIST100 (SİMULASYON MODU - Sabitlenmiş Başlangıç Verileri)
     const SIM_BIST100 = [
       { s: 'THYAO', n: 'Türk Hava Yolları', p: 294.50, c: 1.25 },
       { s: 'ASELS', n: 'Aselsan', p: 62.15, c: 2.10 },
@@ -209,71 +190,67 @@ export default function InvestmentsTab({
       { s: 'PGSUS', n: 'Pegasus', p: 845.00, c: 2.80 },
     ];
 
-    const liveStocks: Asset[] = SIM_BIST100.map((item, idx) => {
-      const symbol = item.s;
-      const id = symbol.toLowerCase();
-      const priceTry = item.p;
-      newSparklines[id] = generateMockSparkline(priceTry, 0.05);
-      return {
-        id, symbol, name: item.n,
-        priceTry, priceUsd: priceTry / currentUsdRate,
-        change24h: item.c,
-        color: STOCK_COLORS[idx % STOCK_COLORS.length],
-        imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${symbol.toLowerCase()}.com.tr`
-      };
-    });
-    setStocks(liveStocks);
+    if (stocks.length === 0) {
+      const initialStocks: Asset[] = SIM_BIST100.map((item, idx) => {
+        const id = item.s.toLowerCase();
+        return {
+          id, symbol: item.s, name: item.n,
+          priceTry: item.p, priceUsd: item.p / currentUsdRate,
+          change24h: item.c,
+          color: STOCK_COLORS[idx % STOCK_COLORS.length],
+          imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${item.s.toLowerCase()}.com.tr`
+        };
+      });
+      setStocks(initialStocks);
+      const stockSparklines: Record<string, { value: number }[]> = {};
+      initialStocks.forEach(s => { stockSparklines[s.id] = generateMockSparkline(s.priceTry, 0.05); });
+      setSparklines(prev => ({ ...prev, ...stockSparklines }));
+    }
 
     // 4. Emtia (SİMULASYON MODU)
-    const SIM_COMMODITIES = [
-      { id: 'xau', name: 'Gram Altın', p: 2485.50, c: 0.45 },
-      { id: 'xag', name: 'Gümüş', p: 31.85, c: 1.20 },
-      { id: 'brent', name: 'Brent Petrol', p: 84.20, c: -0.65 },
-      { id: 'xpt', name: 'Platin', p: 985.00, c: 0.15 },
-      { id: 'xpd', name: 'Paladyum', p: 1045.00, c: -1.40 },
-      { id: 'cop', name: 'Bakır', p: 4.25, c: 0.80 },
-    ];
+    if (commodities.length === 0) {
+      const SIM_COMMODITIES = [
+        { id: 'xau', name: 'Gram Altın', p: 2485.50, c: 0.45 },
+        { id: 'xag', name: 'Gümüş', p: 31.85, c: 1.20 },
+        { id: 'brent', name: 'Brent Petrol', p: 84.20, c: -0.65 },
+        { id: 'xpt', name: 'Platin', p: 985.00, c: 0.15 },
+        { id: 'xpd', name: 'Paladyum', p: 1045.00, c: -1.40 },
+        { id: 'cop', name: 'Bakır', p: 4.25, c: 0.80 },
+      ];
+      const initialCmds = MOCK_COMMODITIES.map(mc => {
+        const sim = SIM_COMMODITIES.find(s => s.id === mc.id);
+        const priceTry = sim ? sim.p : mc.basePrice;
+        return { ...mc, priceTry, priceUsd: priceTry / currentUsdRate, change24h: sim?.c || 0 };
+      });
+      setCommodities(initialCmds);
+      const cmdSparklines: Record<string, { value: number }[]> = {};
+      initialCmds.forEach(c => { cmdSparklines[c.id] = generateMockSparkline(c.priceTry, 0.03); });
+      setSparklines(prev => ({ ...prev, ...cmdSparklines }));
+    }
 
-    const liveCmds = MOCK_COMMODITIES.map(mc => {
-      const sim = SIM_COMMODITIES.find(s => s.id === mc.id);
-      const priceTry = sim ? sim.p : mc.basePrice;
-      const priceUsd = priceTry / currentUsdRate;
-      newSparklines[mc.id] = generateMockSparkline(priceTry, 0.03);
-      return { ...mc, priceTry, priceUsd, change24h: sim?.c || 0 };
-    });
-    setCommodities(liveCmds);
-
-    setSparklines(newSparklines);
-    console.log(`✅ Simulasyon Modu Aktif: ${liveStocks.length} BIST hissesi, ${liveCmds.length} emtia yüklendi.`);
-    setIsLoading(false);
+    if (isFirstLoad) setIsLoading(false);
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchInitialData();
+    loadData(true);
+    // Her 30 saniyede bir gerçek verileri tazele
+    const interval = setInterval(() => loadData(false), 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Stock Market Simulation Loop (Live Illusion)
+  // Micro-Tick Simulation (Makes numbers "play" live)
   useEffect(() => {
-    if (stocks.length === 0) return;
-    const interval = setInterval(() => {
-      setStocks(prev => prev.map(s => {
-        const volatility = 0.002; // 0.2% tick change
-        const change = 1 + ((Math.random() - 0.5) * volatility);
-        const newPrice = s.priceTry * change;
-        return { ...s, priceTry: newPrice, priceUsd: newPrice / usdRate };
-      }));
+    const tickInterval = setInterval(() => {
+      const tick = (val: number, volatility: number = 0.0005) => val * (1 + (Math.random() - 0.5) * volatility);
       
-      setCommodities(prev => prev.map(c => {
-        const volatility = 0.0005; // very low volatility for metals
-        const change = 1 + ((Math.random() - 0.5) * volatility);
-        const newPrice = c.priceTry * change;
-        return { ...c, priceTry: newPrice, priceUsd: newPrice / usdRate };
-      }));
-    }, 4000); // Update every 4 seconds
+      setCryptos(prev => prev.map(c => ({ ...c, priceUsd: tick(c.priceUsd), priceTry: tick(c.priceTry) })));
+      setStocks(prev => prev.map(s => ({ ...s, priceTry: tick(s.priceTry), priceUsd: tick(s.priceUsd) })));
+      setCommodities(prev => prev.map(c => ({ ...c, priceTry: tick(c.priceTry), priceUsd: tick(c.priceUsd) })));
+    }, 2000); // Her 2 saniyede bir ufak oynama
+    
+    return () => clearInterval(tickInterval);
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [stocks.length, usdRate]);
 
   // Derived Values
   const currencySymbol = currency === 'try' ? '₺' : '$';
