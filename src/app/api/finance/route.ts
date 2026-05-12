@@ -59,7 +59,7 @@ export async function GET() {
         columns: ['close', 'change']
       }),
       // Kripto: Binance (Cache kapalı - gerçek zamanlı)
-      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(CRYPTO_SYMBOLS)}`, { cache: 'no-store' }).then(r => r.json())
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(CRYPTO_SYMBOLS))}`, { cache: 'no-store' }).then(r => r.json())
     ]);
 
     // 1. USD/TRY Kuru
