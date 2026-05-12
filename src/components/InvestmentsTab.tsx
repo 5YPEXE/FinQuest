@@ -187,64 +187,64 @@ export default function InvestmentsTab({
       setCryptos([]);
     }
 
-    // 3. BIST100 (TradingView — tarayıcıdan)
-    if (bistRes.status === 'fulfilled' && bistRes.value?.data) {
-      const liveStocks: Asset[] = bistRes.value.data.map((item: any, idx: number) => {
-        const symbol = item.s.replace('BIST:', '');
-        const id = symbol.toLowerCase();
-        const priceTry = item.d[0] || 0;
-        newSparklines[id] = generateMockSparkline(priceTry, 0.05);
-        return {
-          id, symbol, name: item.d[2] || symbol,
-          priceTry, priceUsd: priceTry / currentUsdRate,
-          change24h: item.d[1] || 0,
-          color: STOCK_COLORS[idx % STOCK_COLORS.length],
-          imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${symbol.toLowerCase()}.com.tr`
-        };
-      });
-      setStocks(liveStocks);
-      console.log(`✅ BIST100: ${liveStocks.length} hisse yüklendi.`);
-    } else {
-      console.error('❌ BIST verisi alınamadı.');
-      setStocks([]);
-    }
+    // 3. BIST100 (SİMULASYON MODU - TradingView bloklu olduğu için)
+    const SIM_BIST100 = [
+      { s: 'THYAO', n: 'Türk Hava Yolları', p: 294.50, c: 1.25 },
+      { s: 'ASELS', n: 'Aselsan', p: 62.15, c: 2.10 },
+      { s: 'EREGL', n: 'Erdemir', p: 48.30, c: -0.85 },
+      { s: 'KCHOL', n: 'Koç Holding', p: 182.40, c: 0.45 },
+      { s: 'TUPRS', n: 'Tüpraş', p: 164.20, c: 1.15 },
+      { s: 'SAHOL', n: 'Sabancı Holding', p: 85.10, c: -1.20 },
+      { s: 'SISE', n: 'Şişecam', p: 51.40, c: 0.30 },
+      { s: 'AKBNK', n: 'Akbank', p: 44.20, c: 2.50 },
+      { s: 'GARAN', n: 'Garanti BBVA', p: 78.40, c: 1.80 },
+      { s: 'BIMAS', n: 'BİM Mağazalar', p: 392.00, c: -0.50 },
+      { s: 'SASA', n: 'Sasa Polyester', p: 38.40, c: -3.10 },
+      { s: 'HEKTS', n: 'Hektaş', p: 15.20, c: -2.40 },
+      { s: 'YKBNK', n: 'Yapı Kredi', p: 28.15, c: 1.65 },
+      { s: 'ISCTR', n: 'İş Bankası (C)', p: 13.40, c: 0.90 },
+      { s: 'FROTO', n: 'Ford Otosan', p: 1045.00, c: 0.75 },
+      { s: 'TOASO', n: 'Tofaş Oto', p: 265.50, c: -0.20 },
+      { s: 'PETKM', n: 'Petkim', p: 21.80, c: 0.40 },
+      { s: 'PGSUS', n: 'Pegasus', p: 845.00, c: 2.80 },
+    ];
 
-    // 4. Emtia (TradingView — tarayıcıdan)
-    const COMMODITY_CFD_MAP: Record<string, string> = { 'TVC:GOLD': 'xau', 'TVC:SILVER': 'xag' };
-    const COMMODITY_FUTURES_MAP: Record<string, string> = { 'NYMEX:BZ1!': 'brent', 'NYMEX:PL1!': 'xpt', 'NYMEX:PA1!': 'xpd', 'COMEX:HG1!': 'cop' };
-    const liveComPrices: Record<string, { priceUsd: number; change: number }> = {};
+    const liveStocks: Asset[] = SIM_BIST100.map((item, idx) => {
+      const symbol = item.s;
+      const id = symbol.toLowerCase();
+      const priceTry = item.p;
+      newSparklines[id] = generateMockSparkline(priceTry, 0.05);
+      return {
+        id, symbol, name: item.n,
+        priceTry, priceUsd: priceTry / currentUsdRate,
+        change24h: item.c,
+        color: STOCK_COLORS[idx % STOCK_COLORS.length],
+        imageUrl: `https://www.google.com/s2/favicons?sz=128&domain=${symbol.toLowerCase()}.com.tr`
+      };
+    });
+    setStocks(liveStocks);
 
-    if (cfdRes.status === 'fulfilled' && cfdRes.value?.data) {
-      for (const item of cfdRes.value.data) {
-        const cid = COMMODITY_CFD_MAP[item.s];
-        if (!cid) continue;
-        let priceUsd = item.d[0] || 0;
-        if (cid === 'xau' || cid === 'xag') priceUsd = priceUsd / 31.1035;
-        liveComPrices[cid] = { priceUsd, change: item.d[1] || 0 };
-      }
-    }
-    if (futuresRes.status === 'fulfilled' && futuresRes.value?.data) {
-      for (const item of futuresRes.value.data) {
-        const cid = COMMODITY_FUTURES_MAP[item.s];
-        if (!cid) continue;
-        let priceUsd = item.d[0] || 0;
-        if (cid === 'xpt' || cid === 'xpd') priceUsd = priceUsd / 31.1035;
-        if (cid === 'cop') priceUsd = priceUsd / 0.453592;
-        liveComPrices[cid] = { priceUsd, change: item.d[1] || 0 };
-      }
-    }
+    // 4. Emtia (SİMULASYON MODU)
+    const SIM_COMMODITIES = [
+      { id: 'xau', name: 'Gram Altın', p: 2485.50, c: 0.45 },
+      { id: 'xag', name: 'Gümüş', p: 31.85, c: 1.20 },
+      { id: 'brent', name: 'Brent Petrol', p: 84.20, c: -0.65 },
+      { id: 'xpt', name: 'Platin', p: 985.00, c: 0.15 },
+      { id: 'xpd', name: 'Paladyum', p: 1045.00, c: -1.40 },
+      { id: 'cop', name: 'Bakır', p: 4.25, c: 0.80 },
+    ];
 
     const liveCmds = MOCK_COMMODITIES.map(mc => {
-      const live = liveComPrices[mc.id];
-      const priceTry = live ? live.priceUsd * currentUsdRate : mc.basePrice;
-      const priceUsd = live ? live.priceUsd : mc.basePrice / currentUsdRate;
+      const sim = SIM_COMMODITIES.find(s => s.id === mc.id);
+      const priceTry = sim ? sim.p : mc.basePrice;
+      const priceUsd = priceTry / currentUsdRate;
       newSparklines[mc.id] = generateMockSparkline(priceTry, 0.03);
-      return { ...mc, priceTry, priceUsd, change24h: live?.change || 0 };
+      return { ...mc, priceTry, priceUsd, change24h: sim?.c || 0 };
     });
     setCommodities(liveCmds);
 
     setSparklines(newSparklines);
-    console.log(`✅ Veri özeti: BIST ${bistRes.status === 'fulfilled' ? '✓' : '✗'} | FX ${fxRes.status === 'fulfilled' ? '✓' : '✗'} | Emtia CFD ${cfdRes.status === 'fulfilled' ? '✓' : '✗'} | Futures ${futuresRes.status === 'fulfilled' ? '✓' : '✗'} | Binance ${apiRes.status === 'fulfilled' ? '✓' : '✗'}`);
+    console.log(`✅ Simulasyon Modu Aktif: ${liveStocks.length} BIST hissesi, ${liveCmds.length} emtia yüklendi.`);
     setIsLoading(false);
   };
 
