@@ -9,7 +9,8 @@ async function fetchTradingView(market: string, body: object) {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(8000) // 8 saniye timeout
+    signal: AbortSignal.timeout(8000),
+    cache: 'no-store'
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -57,8 +58,8 @@ export async function GET() {
         symbols: { tickers: Object.values(COMMODITY_FUTURES), query: { types: [] } },
         columns: ['close', 'change']
       }),
-      // Kripto: Binance
-      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(CRYPTO_SYMBOLS)}`).then(r => r.json())
+      // Kripto: Binance (Cache kapalı - gerçek zamanlı)
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(CRYPTO_SYMBOLS)}`, { cache: 'no-store' }).then(r => r.json())
     ]);
 
     // 1. USD/TRY Kuru

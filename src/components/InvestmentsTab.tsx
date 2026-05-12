@@ -158,7 +158,7 @@ export default function InvestmentsTab({
         columns: ['close', 'change']
       }),
       // API Route'dan: Binance kripto verileri
-      fetch('/api/finance').then(r => r.json())
+      fetch('/api/finance', { cache: 'no-store' }).then(r => r.json())
     ]);
 
     // 1. USD/TRY Kuru
